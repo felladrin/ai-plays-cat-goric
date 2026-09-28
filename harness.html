@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cat Goric — Harness</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0f14;
+        touch-action: none;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      /* Hide the Tweakpane dev panel from the recording without touching main.ts. */
+      .tp-dfwv { display: none !important; }
+
+      /* Two-column stage: game on the left, decision panel on the right. */
+      #stage { display: flex; width: 100vw; height: 100vh; }
+      /* Square, tied to viewport height, so the 360x360 canvas backing store is
+         scaled by an INTEGER factor (720px = exactly 2x). A non-integer scale
+         such as 900px (2.5x) makes some game pixels 2 screen-px wide and others
+         3, which is visible on pixel art under image-rendering: pixelated. */
+      #game-wrap { width: 100vh; height: 100vh; flex: none; background: radial-gradient(circle, #bed678 0%, #3b8d89 100%); }
+      canvas { display: block; image-rendering: pixelated; }
+      button[data-kontra] { visibility: hidden; }
+
+      #panel {
+        flex: 1;
+        min-width: 0;
+        height: 100vh;
+        overflow: hidden;
+        padding: 18px 20px;
+        color: #e8eef2;
+        background: #0b0f14;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      #panel h1 { font-size: 18px; letter-spacing: 1px; color: #7fd1c0; font-weight: 700; }
+      #thinking {
+        font-size: 15px; color: #ffd166; height: 20px;
+        opacity: 0; transition: opacity 0.12s;
+      }
+      #thinking.on { opacity: 1; }
+      .section { background: #121a22; border: 1px solid #1f2c38; border-radius: 8px; padding: 12px 14px; }
+      .section .q { font-size: 13px; color: #9fb3c0; margin-bottom: 8px; }
+      .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; }
+      .bar-label { width: 110px; flex: none; color: #cdd9e2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .bar-track { flex: 1; height: 16px; background: #0c141b; border-radius: 3px; overflow: hidden; }
+      .bar-fill { height: 100%; background: #3a6b7a; border-radius: 3px; transition: width 0.15s; }
+      .bar-row.chosen .bar-fill { background: #38d17a; }
+      .bar-row.chosen .bar-label { color: #38d17a; font-weight: 700; }
+      .bar-val { width: 52px; flex: none; text-align: right; color: #9fb3c0; }
+      .bar-row.chosen .bar-val { color: #38d17a; }
+      #stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 13px; }
+      #stats .k { color: #7f95a3; }
+      #stats .v { color: #e8eef2; text-align: right; }
+      #policy { font-size: 13px; }
+      #policy .mode-argmax { color: #7fd1c0; font-weight: 700; }
+      #policy .mode-sample { color: #ffd166; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="game-wrap">
+        <canvas id="game" width="360" height="360" />
+      </div>
+      <div id="panel">
+        <h1>JEV CLASSIFIER — LIVE DECISION</h1>
+        <div id="thinking">thinking…</div>
+        <div class="section" id="obj-section">
+          <div class="q" id="obj-q">objective</div>
+          <div id="obj-bars"></div>
+        </div>
+        <div class="section" id="move-section">
+          <div class="q" id="move-q">move</div>
+          <div id="move-bars"></div>
+        </div>
+        <div class="section" id="policy"></div>
+        <div class="section" id="stats"></div>
+      </div>
+    </div>
+    <!-- Order matters: main.ts boots the game and registers all subscriptions.
+         bridge.ts loads second and re-exports the live singletons onto window. -->
+    <script type="module" src="./cat-goric-game/src/scripts/main.ts"></script>
+    <script type="module" src="./bridge/bridge.ts"></script>
+    <script>
+      // Decision overlay. Exposed as window.overlay for the driver to drive via
+      // page.evaluate. The probability bars are the visible evidence that this is
+      // a classifier reading a distribution over permitted labels, not an LLM
+      // writing an answer — so losing options are shown, not just the winner.
+      (function () {
+        const $ = (id) => document.getElementById(id);
+        const thinkingEl = $("thinking");
+
+        function renderBars(container, probs, chosen) {
+          container.innerHTML = "";
+          const entries = Object.entries(probs || {}).sort((a, b) => b[1] - a[1]);
+          for (const [name, p] of entries) {
+            const row = document.createElement("div");
+            row.className = "bar-row" + (name === chosen ? " chosen" : "");
+            const pct = Math.max(0, Math.min(100, p * 100));
+            row.innerHTML =
+              '<div class="bar-label">' + name + "</div>" +
+              '<div class="bar-track"><div class="bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+              '<div class="bar-val">' + p.toFixed(3) + "</div>";
+            container.appendChild(row);
+          }
+        }
+
+        window.overlay = {
+          thinking(on) {
+            thinkingEl.classList.toggle("on", !!on);
+          },
+          update(data) {
+            if (!data) return;
+            if (data.objective) {
+              $("obj-q").textContent = "Objective — " + (data.objective.question || "");
+              renderBars($("obj-bars"), data.objective.probs, data.objective.chosen);
+            }
+            if (data.move) {
+              $("move-q").textContent = "Move — " + (data.move.question || "");
+              renderBars($("move-bars"), data.move.probs, data.move.chosen);
+            }
+            const mode = data.policyMode || "ARGMAX";
+            let pol = '<span class="' + (mode === "SAMPLE" ? "mode-sample" : "mode-argmax") + '">' + mode + "</span>";
+            if (mode === "SAMPLE") {
+              pol += " &nbsp;T=" + (data.temperature != null ? data.temperature.toFixed(2) : "?") +
+                     " &nbsp;priorDeaths=" + (data.priorDeaths != null ? data.priorDeaths : "?");
+            }
+            pol += " &nbsp;<span style='color:#7f95a3'>latency</span> " + (data.latencyMs != null ? data.latencyMs + "ms" : "?");
+            $("policy").innerHTML = "Policy: " + pol;
+            const st = $("stats");
+            st.innerHTML =
+              '<div class="k">Level</div><div class="v">' + (data.level != null ? data.level : "?") + "</div>" +
+              '<div class="k">Gems collected</div><div class="v">' + (data.gems != null ? data.gems : "?") + "</div>" +
+              '<div class="k">Deaths</div><div class="v">' + (data.deaths != null ? data.deaths : "?") + "</div>" +
+              '<div class="k">Moving frames</div><div class="v">' + (data.movingFrames != null ? data.movingFrames : "?") + "</div>" +
+              (data.countdown != null
+                ? '<div class="k">Frames until laser</div><div class="v">' + data.countdown + "</div>"
+                : "");
+          },
+        };
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+[
+ {
+  "input": "level_0_halogen_cleared.webm",
+  "frames": 1695,
+  "durationSec": 67.8,
+  "threshold": 0.0007,
+  "activeFramePct": 99.4,
+  "moveSegments": 2,
+  "stillSegments": 2,
+  "moveSecTotal": 67.24,
+  "stillSecTotal": 0.44,
+  "moveSec": {
+   "median": null,
+   "p90": null,
+   "max": 60.2
+  },
+  "stillSec": {
+   "p10": null,
+   "median": null,
+   "p90": null,
+   "max": 0.36
+  },
+  "segments": [
+   {
+    "k": "m",
+    "t": 0,
+    "d": 7.04
+   },
+   {
+    "k": "s",
+    "t": 7.04,
+    "d": 0.36
+   },
+   {
+    "k": "s",
+    "t": 7.48,
+    "d": 0.08
+   },
+   {
+    "k": "m",
+    "t": 7.56,
+    "d": 60.2
+   }
+  ],
+  "hist": {
+   "lmin": -3.607,
+   "lmax": 2.009,
+   "counts": [
+    9,
+    0,
+    0,
+    0,
+    0,
+    0,
+    32,
+    0,
+    46,
+    216,
+    338,
+    220,
+    285,
+    83,
+    74,
+    32,
+    18,
+    124,
+    30,
+    27,
+    18,
+    12,
+    6,
+    4,
+    10,
+    14,
+    4,
+    16,
+    28,
+    20,
+    6,
+    8,
+    2,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "bins": 48
+  }
+ }
+]
