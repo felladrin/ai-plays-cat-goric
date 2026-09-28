@@ -21,8 +21,9 @@ refer to the old layout. The mapping:
 | `src/scripts/**` (the game) | `../cat-goric-game/src/scripts/**` (submodule, read-only) |
 | `harness.html`, `harness.vite.config.cjs`, `driver/` | unchanged, at the new repo root |
 
-No other path moved. The bridge's import specifiers and three file-reading paths in
-`test_objective_lock.cjs`, `test_death_history.cjs` and `experiments/` were
+No other path moved. The bridge's nine import specifiers and five file-reading
+paths (`test_objective_lock.cjs`, `test_death_history.cjs`, `.tdh_head_check.cjs`,
+`experiments/check_ascent_crit.cjs`, `experiments/census_airborne_lock.cjs`) were
 rewritten to match; nothing else in the code changed.
 
 ---
