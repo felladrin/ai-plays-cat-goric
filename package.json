@@ -15,7 +15,7 @@
     "tweakpane": "^3.0.7"
   },
   "devDependencies": {
-    "vite": "~2.5.10"
+    "vite": "~2.9.0"
   },
   "allowScripts": {
     "esbuild@0.12.29": true
