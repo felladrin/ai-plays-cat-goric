@@ -1,0 +1,4 @@
+[submodule "cat-goric-game"]
+	path = cat-goric-game
+	url = https://github.com/felladrin/js13k-2021.git
+	branch = main

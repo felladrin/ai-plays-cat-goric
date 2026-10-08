@@ -1,0 +1,191 @@
+{
+ "holdFrames": 12,
+ "motionSpeed": 1,
+ "perInput": [
+  {
+   "input": "level_0_halogen_cleared.webm",
+   "rawFrames": 1695,
+   "rawSec": 67.8,
+   "motionBursts": 33,
+   "motionFrames": 65,
+   "motionSec": 2.6,
+   "gaps": 34,
+   "holdFrames": 376,
+   "droppedFrames": 1254,
+   "outFrames": 441,
+   "outSec": 17.64
+  },
+  {
+   "input": "level_1_halogen_cleared.webm",
+   "rawFrames": 5726,
+   "rawSec": 229.04,
+   "motionBursts": 80,
+   "motionFrames": 161,
+   "motionSec": 6.44,
+   "gaps": 81,
+   "holdFrames": 956,
+   "droppedFrames": 4609,
+   "outFrames": 1117,
+   "outSec": 44.68
+  },
+  {
+   "input": "level_2_halogen_cleared.webm",
+   "rawFrames": 5889,
+   "rawSec": 235.56,
+   "motionBursts": 89,
+   "motionFrames": 180,
+   "motionSec": 7.2,
+   "gaps": 90,
+   "holdFrames": 1063,
+   "droppedFrames": 4646,
+   "outFrames": 1243,
+   "outSec": 49.72
+  }
+ ],
+ "totalRawSec": 532.4,
+ "totalOutSec": 112.04,
+ "totalOutFrames": 2801,
+ "motionShareOfOutput": 14.5,
+ "clearedDecisions14Levels": 697,
+ "failingDecisions14Levels": 5309,
+ "motionFramesPerDecision": {
+  "detector": 2.01,
+  "mpdecimate": 4.17
+ },
+ "holdBudget": [
+  {
+   "holdFrames": 4,
+   "readMs": 160,
+   "cleared": {
+    "holdMin": 1.86,
+    "motionMin": 0.93,
+    "totalMin": 2.79
+   },
+   "clearedMp": {
+    "holdMin": 1.86,
+    "motionMin": 1.94,
+    "totalMin": 3.8
+   },
+   "failing": {
+    "holdMin": 14.16,
+    "motionMin": 7.11,
+    "totalMin": 21.27
+   }
+  },
+  {
+   "holdFrames": 8,
+   "readMs": 320,
+   "cleared": {
+    "holdMin": 3.72,
+    "motionMin": 0.93,
+    "totalMin": 4.65
+   },
+   "clearedMp": {
+    "holdMin": 3.72,
+    "motionMin": 1.94,
+    "totalMin": 5.65
+   },
+   "failing": {
+    "holdMin": 28.31,
+    "motionMin": 7.11,
+    "totalMin": 35.43
+   }
+  },
+  {
+   "holdFrames": 10,
+   "readMs": 400,
+   "cleared": {
+    "holdMin": 4.65,
+    "motionMin": 0.93,
+    "totalMin": 5.58
+   },
+   "clearedMp": {
+    "holdMin": 4.65,
+    "motionMin": 1.94,
+    "totalMin": 6.58
+   },
+   "failing": {
+    "holdMin": 35.39,
+    "motionMin": 7.11,
+    "totalMin": 42.51
+   }
+  },
+  {
+   "holdFrames": 12,
+   "readMs": 480,
+   "cleared": {
+    "holdMin": 5.58,
+    "motionMin": 0.93,
+    "totalMin": 6.51
+   },
+   "clearedMp": {
+    "holdMin": 5.58,
+    "motionMin": 1.94,
+    "totalMin": 7.51
+   },
+   "failing": {
+    "holdMin": 42.47,
+    "motionMin": 7.11,
+    "totalMin": 49.59
+   }
+  },
+  {
+   "holdFrames": 15,
+   "readMs": 600,
+   "cleared": {
+    "holdMin": 6.97,
+    "motionMin": 0.93,
+    "totalMin": 7.9
+   },
+   "clearedMp": {
+    "holdMin": 6.97,
+    "motionMin": 1.94,
+    "totalMin": 8.91
+   },
+   "failing": {
+    "holdMin": 53.09,
+    "motionMin": 7.11,
+    "totalMin": 60.2
+   }
+  },
+  {
+   "holdFrames": 20,
+   "readMs": 800,
+   "cleared": {
+    "holdMin": 9.29,
+    "motionMin": 0.93,
+    "totalMin": 10.23
+   },
+   "clearedMp": {
+    "holdMin": 9.29,
+    "motionMin": 1.94,
+    "totalMin": 11.23
+   },
+   "failing": {
+    "holdMin": 70.79,
+    "motionMin": 7.11,
+    "totalMin": 77.9
+   }
+  },
+  {
+   "holdFrames": 24,
+   "readMs": 960,
+   "cleared": {
+    "holdMin": 11.15,
+    "motionMin": 0.93,
+    "totalMin": 12.09
+   },
+   "clearedMp": {
+    "holdMin": 11.15,
+    "motionMin": 1.94,
+    "totalMin": 13.09
+   },
+   "failing": {
+    "holdMin": 84.94,
+    "motionMin": 7.11,
+    "totalMin": 92.06
+   }
+  }
+ ],
+ "planRows": 407
+}

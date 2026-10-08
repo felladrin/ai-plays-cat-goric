@@ -1,0 +1,298 @@
+{
+ "generatedBy": "driver/video/align.cjs",
+ "video": {
+  "path": "out/level_0_halogen_cleared.webm",
+  "creationTime": "2026-09-24T00:58:28.442000Z",
+  "zeroMs": 1790211508442,
+  "durationMs": 67800,
+  "durationSec": 67.8,
+  "frames": 1695,
+  "fps": 25,
+  "codec": "vp8",
+  "width": 1280,
+  "height": 720
+ },
+ "log": {
+  "path": "/var/folders/xl/j5mx792d5rs1dq82bkpltlcm0000gn/T/opencode/alignfix/run_full_fixture.json",
+  "which": "halogen",
+  "recorded": true,
+  "decisionCount": 29,
+  "deathCount": 0,
+  "levelCount": 2
+ },
+ "check": {
+  "predictedFloorMs": 45000,
+  "predictedCeilingMs": 68440,
+  "measuredDurationMs": 67800,
+  "endMs": 67400,
+  "deltaVsEndWallMs": 400,
+  "deltaInRange": true,
+  "epochHintLagMs": 12,
+  "countedFrames": 1695,
+  "countedFramesAgree": true
+ },
+ "levels": [
+  {
+   "level": 0,
+   "decisions": 5,
+   "deaths": 0,
+   "wallMs": 1790211508442,
+   "ms": 0,
+   "frame": 0,
+   "residual": 0,
+   "missingStamp": false
+  },
+  {
+   "level": 1,
+   "decisions": 24,
+   "deaths": 0,
+   "wallMs": 1790211528442,
+   "ms": 20000,
+   "frame": 500,
+   "residual": 0,
+   "missingStamp": false
+  }
+ ],
+ "victory": null,
+ "end": {
+  "wallMs": 1790211575842,
+  "ms": 67400,
+  "frame": 1685,
+  "residual": 0
+ },
+ "decisions": [
+  {
+   "level": 0,
+   "step": 0,
+   "wallMs": 1790211510442,
+   "ms": 2000,
+   "frame": 50,
+   "residual": 0
+  },
+  {
+   "level": 0,
+   "step": 1,
+   "wallMs": 1790211512442,
+   "ms": 4000,
+   "frame": 100,
+   "residual": 0
+  },
+  {
+   "level": 0,
+   "step": 2,
+   "wallMs": 1790211514442,
+   "ms": 6000,
+   "frame": 150,
+   "residual": 0
+  },
+  {
+   "level": 0,
+   "step": 3,
+   "wallMs": 1790211516442,
+   "ms": 8000,
+   "frame": 200,
+   "residual": 0
+  },
+  {
+   "level": 0,
+   "step": 4,
+   "wallMs": 1790211518442,
+   "ms": 10000,
+   "frame": 250,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 0,
+   "wallMs": 1790211529442,
+   "ms": 21000,
+   "frame": 525,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 1,
+   "wallMs": 1790211530442,
+   "ms": 22000,
+   "frame": 550,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 2,
+   "wallMs": 1790211531442,
+   "ms": 23000,
+   "frame": 575,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 3,
+   "wallMs": 1790211532442,
+   "ms": 24000,
+   "frame": 600,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 4,
+   "wallMs": 1790211533442,
+   "ms": 25000,
+   "frame": 625,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 5,
+   "wallMs": 1790211534442,
+   "ms": 26000,
+   "frame": 650,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 6,
+   "wallMs": 1790211535442,
+   "ms": 27000,
+   "frame": 675,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 7,
+   "wallMs": 1790211536442,
+   "ms": 28000,
+   "frame": 700,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 8,
+   "wallMs": 1790211537442,
+   "ms": 29000,
+   "frame": 725,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 9,
+   "wallMs": 1790211538442,
+   "ms": 30000,
+   "frame": 750,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 10,
+   "wallMs": 1790211539442,
+   "ms": 31000,
+   "frame": 775,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 11,
+   "wallMs": 1790211540442,
+   "ms": 32000,
+   "frame": 800,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 12,
+   "wallMs": 1790211541442,
+   "ms": 33000,
+   "frame": 825,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 13,
+   "wallMs": 1790211542442,
+   "ms": 34000,
+   "frame": 850,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 14,
+   "wallMs": 1790211543442,
+   "ms": 35000,
+   "frame": 875,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 15,
+   "wallMs": 1790211544442,
+   "ms": 36000,
+   "frame": 900,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 16,
+   "wallMs": 1790211545442,
+   "ms": 37000,
+   "frame": 925,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 17,
+   "wallMs": 1790211546442,
+   "ms": 38000,
+   "frame": 950,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 18,
+   "wallMs": 1790211547442,
+   "ms": 39000,
+   "frame": 975,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 19,
+   "wallMs": 1790211548442,
+   "ms": 40000,
+   "frame": 1000,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 20,
+   "wallMs": 1790211549442,
+   "ms": 41000,
+   "frame": 1025,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 21,
+   "wallMs": 1790211550442,
+   "ms": 42000,
+   "frame": 1050,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 22,
+   "wallMs": 1790211551442,
+   "ms": 43000,
+   "frame": 1075,
+   "residual": 0
+  },
+  {
+   "level": 1,
+   "step": 23,
+   "wallMs": 1790211552442,
+   "ms": 44000,
+   "frame": 1100,
+   "residual": 0
+  }
+ ],
+ "deaths": []
+}
