@@ -5,10 +5,12 @@
   ],
   "packageRules": [
     {
+      // The game is a frozen 2021 js13k reproduction built against the kontra 7.x /
+      // create-pubsub 1.x APIs; the harness vite config is vite-2-specific.
+      // Majors break the build and the byte-fidelity premise.
       "matchPackageNames": ["kontra", "create-pubsub", "tweakpane", "base26", "tinyfont", "vite"],
       "matchUpdateTypes": ["major"],
-      "enabled": false,
-      "reason": "The game is a frozen 2021 js13k reproduction built against the kontra 7.x / create-pubsub 1.x APIs; the harness vite config is vite-2-specific. Majors break the build and the byte-fidelity premise."
+      "enabled": false
     }
   ]
 }
