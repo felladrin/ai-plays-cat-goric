@@ -69,14 +69,14 @@ Requires a model endpoint that returns next-token logprobs. Any llama.cpp server
 git clone --recurse-submodules https://github.com/felladrin/ai-plays-cat-goric.git
 # already cloned without it: git submodule update --init --recursive
 
-# 1. game harness
+# 1. game harness (run from repo root)
 npm install
 npx vite --config harness.vite.config.cjs      # serves http://127.0.0.1:5173/harness.html
 
 # 2. driver
 cd driver && npm install && npx playwright install chromium
 
-# 3. play one level
+# 3. play one level (from driver/)
 LLAMA_BASE_URL=http://127.0.0.1:1234 node run_level.cjs qwen_local 2
 
 # or the whole ladder
@@ -86,7 +86,7 @@ LLAMA_BASE_URL=http://127.0.0.1:1234 node run_full.cjs qwen_local
 node run_level.cjs clef 10
 ```
 
-A level run takes 40 to 900 seconds and writes `out/run_level_<n>_clef.json` plus a
+A level run takes 40 to 1500 seconds and writes `out/run_level_<n>_clef.json` plus a
 `.log`. Every flag that changes a decision is stamped into the run file under `build`,
 together with the effective `SEED`, so a result can always be tied to the build that
 produced it. For a sweep, copy `driver/` to `out/exp_<tag>/driver` and run from there:
@@ -99,7 +99,7 @@ the frozen copy means an edit made mid-sweep cannot leak into the runs it is mea
 By default nothing is skipped: `run_full.cjs` plays the whole ladder, levels 0 to 13, and a new clone behaves exactly as it always did. Demo mode is opt-in, and only turns on when you set `DEMO_KEEP_LEVELS`.
 
 ```sh
-DEMO_KEEP_LEVELS=0,1,2,5,7,8 node run_full.cjs halogen
+DEMO_KEEP_LEVELS=0,1,2,5,7,8,9,10 node run_full.cjs halogen
 ```
 
 The run then plays only the kept levels. When the cat touches a portal into a level outside the set, the driver moves the level store to the next kept level above the one just cleared, or to the victory screen when none is left. The levels are skipped, not deleted, for two reasons: `cat-goric-game` is a submodule pinned to the archived upstream and read-only by construction, and renumbering would make the in-game `QUADRANT:` label lie about what is on screen while desyncing every driver structure indexed by the original level index (`level_data.cjs`, the reachability tables, the prompts).
@@ -116,7 +116,7 @@ Everything machine-specific is in `config.cjs` and overridable by environment va
 
 | variable | default | purpose |
 |---|---|---|
-| `LLAMA_BASE_URL` | `http://127.0.0.1:1234` | llama.cpp / llama-swap server |
+| `LLAMA_BASE_URL` | *required* (throws if unset) | llama.cpp / llama-swap server |
 | `SIMPLE_JEV_BASE_URL` | `http://127.0.0.1:8000` | local simple-jev classifier |
 | `DEMO_BASE_URL` | the hosted demo | hosted classifier endpoint |
 | `DECISIONS_BASE_URL` | — | required by `clef`. The hosted Decisions service base URL. The driver throws if it is unset rather than failing mid-run |
@@ -172,7 +172,17 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools (need live harness + Playwright) |
 | `cadence.cjs` | how many frames one decision runs for, and when the model re-decides |
 | `survey_levels.sh` | run levels in isolation (needs live harness + endpoint), one row per level in `out/survey_<endpoint>.tsv` |
-| `test_death_history.cjs` | the checks. `npm test` in this folder. |
+| `test_all.cjs` | runs all test suites (9 PASS + 1 pinned EXPECTED-RED). `npm test` in this folder. |
+| `test_death_history.cjs` | death history, revisit escalation, and stall detector checks |
+| `test_descent_gate.cjs` | descent point offer/stranding gate checks |
+| `test_sticky_objective.cjs` | sticky objective lock checks |
+| `test_cfg_shadow.cjs` | CFG shadowing scope checks |
+| `test_burn_facts.cjs` | BURN_FACTS clause checks |
+| `test_obj_sample.cjs` | OBJ_SAMPLE / WPT_ARGMAX objective sampling checks |
+| `test_descent_laser_gate.cjs` | descent laser gate checks |
+| `test_simulate_clock.cjs` | simulate() clock argument audit checks |
+| `test_runner_parity.cjs` | run_level/run_full parity checks |
+| `test_objective_lock.cjs` | objective lock and jump-landing note checks (red by design) |
 
 The policy, the results, the dead ends and the open problems are in [`../docs/`](../docs/README.md).
 
