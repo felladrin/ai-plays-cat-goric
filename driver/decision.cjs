@@ -779,7 +779,7 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
       const CFGp = require("./physics.cjs");
       const { simulate } = require("./arc.cjs");
       const dir = /left/.test(dp.name) ? "left" : "right";
-      const r = simulate(snap.level, dp.x, snap.cat.y, 0, snap.cat.height, dir, 0, { grounded: true });
+      const r = simulate(snap.level, dp.x, snap.cat.y, 0, snap.cat.height, dir, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (LATENT-DEFECT)
       if (r.outcome === "landed") {
         const landKey = REACH.platformKeyUnder(snap.level, r.x, r.y);
         const after = landKey ? REACH.reachableFrom(snap.level, landKey, snap.cat.height) : null;
@@ -961,7 +961,7 @@ function jumpLandingNote(snap, target) {
   let heldX = null, heldPlat = null;
   for (const x of good) {
     for (const dir of ["jump_left", "jump", "jump_right"]) {
-      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true });
+      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 1 (DEFENSIBLE)
       if (r.outcome !== "landed") continue;
       const rKey = REACH.platformKeyUnder(snap.level, r.x, r.y);
       if (rKey && rKey !== here && keeps(rKey)) {
@@ -1070,9 +1070,9 @@ function walkOffFatalNote(snap, target) {
   const CAD = require("./cadence.cjs");
   const reachEnd = (CAD.GROUND_DECIDE_FRAMES || 6) * CFGp.catWalkSpeed;
   if (Math.abs(snap.cat.x - endX) > reachEnd) return null;
-  const r = simulate(snap.level, endX, run.y, 0, snap.cat.height, dir, 0, { grounded: true });
+  const r = simulate(snap.level, endX, run.y, 0, snap.cat.height, dir, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (LATENT-DEFECT)
   if (r.outcome === "landed") return null;
-  const jmp = simulate(snap.level, endX, run.y, 0, snap.cat.height, `jump_${dir}`, 0, { grounded: true });
+  const jmp = simulate(snap.level, endX, run.y, 0, snap.cat.height, `jump_${dir}`, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (LATENT-DEFECT)
   return (
     `Walking off the ${dir} end of this floor (x ${Math.round(endX)}) does not reach any platform: the cat falls past ` +
     `everything below and dies` +
@@ -1789,7 +1789,7 @@ function descentPoints(snap, levelGems) {
       // for A/B. See AWAY_DECISIONS.md and Claude round 7.
       if (process.env.LANDDESC_HELD !== "1") return envDesc;
       const { simulate } = require("./arc.cjs");
-      const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { grounded: true });
+      const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (DEFENSIBLE-guarded)
       if (hr.outcome !== "landed") return envDesc; // fail open to old text
       const hp = plats.find((p) => p[1] === Math.round(hr.y) && platformEdges(p[0]).left <= hr.x && platformEdges(p[0]).right >= hr.x);
       if (!hp) return envDesc;
