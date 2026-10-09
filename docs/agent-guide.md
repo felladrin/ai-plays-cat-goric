@@ -54,7 +54,7 @@ means an edit made mid-sweep cannot leak into the runs that are measuring it.
 - A new prompt fact must be regression-tested on the levels that already clear. Every
   harmful fact in [dead-ends.md](dead-ends.md) was caught only there, never by a level
   failing outright.
-- `npm test` runs the full suite (`test_all.cjs`): the eight green suites plus
+- `npm test` runs the full suite (`test_all.cjs`): the nine green suites plus
   `test_objective_lock.cjs`, which is red **by design** as the gate on
   re-enabling the same-floor note — the runner expects that exact failure and
   fails if it goes red or green for any other reason.
