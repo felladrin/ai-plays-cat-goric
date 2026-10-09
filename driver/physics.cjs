@@ -14,15 +14,6 @@ module.exports = {
   // Grounded decision cadence (frames walked per non-jump decision), mirrors K in
   // run_level.cjs. Used to derive "within a short walk of an edge".
   decisionIntervalFrames: 6,
-  // Countdown relevance threshold. A warning is only useful if it arrives while
-  // the escape it warns about is still AFFORDABLE. The cheapest escape from the L2
-  // top floor (walk to an end + fall) costs ~120 moving frames from a standing
-  // start. A threshold below that cost shows the warning only once descent is
-  // already unaffordable — correct, timely, and useless. So the threshold must sit
-  // comfortably ABOVE the cost of the cheapest escape, not just above one jump arc.
-  // 200 frames gives margin over the ~120-frame descent. L0 completes at ~76 max
-  // moving frames, so it never gets within 200 of death and stays noise-free.
-  countdownWarnFrames: 200,
   // Platform collision box, MEASURED from the live sprites (52x16, anchor
   // {x:0.5, y:0.4}) rather than assumed. updateCatSprite.ts collides the cat
   // against the platform SPRITE, so these are the numbers that decide where the

@@ -31,6 +31,7 @@ const REACH = require("./reachability.cjs");
 const { matchGemsToSpawn: matchAlive } = require("./decision.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
+const { STALL_WINDOW, STALL_MAX_DISTINCT } = require("./stall_window.cjs");
 
 // The overlay payload. decide() reports samplingTemperature/priorDeathsHere while
 // layaDecide() reports temperatureUsed/priorDeathsAtPosition; read both, or the
@@ -305,8 +306,6 @@ const r2 = (n) => Math.round(n * 100) / 100;
   // before it starts sampling, which in a two-position oscillation is ~8 decisions.
   // At 10 the abort fired first and level 2 was reported as stalled while its escape
   // hatch had had two decisions to work.
-  const STALL_WINDOW = 24;
-  const STALL_MAX_DISTINCT = 2;
   const stallWin = [];
   let peakMF = 0; // peak moving frames observed DURING the level (not post-reset)
   let peakCollected = 0; // peak gems collected DURING the level (not post-advance)
