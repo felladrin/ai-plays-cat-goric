@@ -646,6 +646,13 @@ __pending = __pending.then(async () => {
   const rl = fs.readFileSync(path.join(__dirname, "run_level.cjs"), "utf8");
   assert(/require\("\.\/stall_window\.cjs"\)/.test(rl),
     "run_level.cjs must import STALL_WINDOW from stall_window.cjs");
+  // run_level must NOT declare its own STALL_WINDOW (shadowing the import).
+  // test_runner_parity.cjs counts declarations; here we assert zero to close
+  // the hole where a local const would pass the import check but shadow it.
+  // Match at any indentation (module or function scope) to catch shadowing.
+  const rlStallDecls = (rl.match(/^\s*const STALL_WINDOW = /gm) || []).length;
+  assert.strictEqual(rlStallDecls, 0,
+    "run_level.cjs must have ZERO const STALL_WINDOW declarations (import only)");
   // run_full's stall detector is progress-based, not position-distinct; its
   // window is a measured ladder value, deliberately NOT the shared one
   // (reverted 2026-10-09, see docs/open-problems.md). Pin the documented shape:
