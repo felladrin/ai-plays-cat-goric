@@ -113,6 +113,10 @@ Both runs carried the same two changes, so neither is separated. The cheapest op
 
 Twenty `decision.patched_*.cjs` snapshots of the prompt builder from different nights were tracked in the tree, alongside `decision.real.cjs`, `hop_points.patched.cjs`, and `driver/.tdh_head_check.cjs` (a byte-identical copy of `test_death_history.cjs`). Running one silently reverted whatever had landed after it, while the summary line looked like a clean test. All removed on 2026-10-08; they remain in git history if a diff is ever needed. `driver/experiments/decision.descent-experiment.cjs` stays: it is documented in the experiments README.
 
+### Orphaned and broken experiment scripts — AUDITED 2026-10-09
+
+Seven experiment scripts and `driver/run_urgency.cjs` require `decision.patched_*.cjs` files that were deleted on 2026-10-08; they fail at require time. Three more scripts (`gem_floor_offset.cjs`, `collect_table.cjs`, `probe_move.cjs`) have a stale path to `config.ts` (missing `cat-goric-game/`) and error on file-not-found. Nine scripts are offline-runnable diagnostics with no documentation references: `diag_gate_blast_radius.cjs`, `diag_hop_scan.cjs`, `landings_hash.cjs`, `probe_urgency_l12.cjs`, `census_simulate_clock.cjs`, `firstpick_sweep.cjs`, `route_clock.cjs`, `probe_strict.cjs`, `test_demo_skip.cjs` — they execute cleanly but are not cited anywhere. Six scripts (`census_gem_from.cjs`, `firing_counts.cjs`, `probe_clef.cjs`, `log_verdict_audit.cjs`, `dump_oscillations.cjs`, `waypoint_verdict_audit.cjs`) need run archives or prompt dumps that a fresh clone does not have. Deletion is an owner decision; nothing was deleted.
+
 ## 4. The video
 
 Made, on 2026-09-29. A 17m17s take reaches `CATEGORIC ESCAPE!` with the decision panel live on every decision, which is the thing the four deleted recordings got wrong. It is the raw screencast from `run_full.cjs` in demo mode (`DEMO_KEEP_LEVELS=0,1,2,5,7,8`), so it plays the 6 solid levels back to back and skips the rest: the win is a shortened ladder, not 14 levels cleared. The skips are recorded in the run JSON under `demoSkips`, and `driver/experiments/test_demo_skip.cjs` covers the rewrite.
