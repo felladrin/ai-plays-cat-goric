@@ -105,7 +105,7 @@ An earlier lettered-menu shim sent a *completed* user turn and asked the model t
 
 | File | Role |
 | --- | --- |
-| `driver/decision.cjs` | State construction and the policy. 2277 lines, the bulk of the work. |
+| `driver/decision.cjs` | State construction and the policy. 2634 lines, the bulk of the work. |
 | `driver/jev.cjs` | Endpoint clients: classifier API, llama.cpp logprobs, halogen logprobs, chat fallback. A failed call is a hard error. |
 | `driver/reachability.cjs` | The air-control model: `landingsFrom`, `platformHolding`, `platformKeyUnder`, `reachableFrom`. |
 | `driver/arc.cjs` | `simulate()`, one held action to termination. |
