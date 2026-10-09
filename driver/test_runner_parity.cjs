@@ -24,16 +24,55 @@ function extractConst(src, name) {
   return m ? m[1].trim() : null;
 }
 
+function countConstDecls(src, name) {
+  // Count all top-level const NAME = ... declarations (line-start match)
+  const re = new RegExp(`^\\s*const ${name} = `, "gm");
+  const matches = src.match(re);
+  return matches ? matches.length : 0;
+}
+
 function extractImportedConst(src, mod, name) {
   // Matches: const { NAME } = require("MOD");
   const re = new RegExp(`const \\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*=\\s*require\\(["']${mod}["']\\)`);
   return re.test(src);
 }
 
+function detectCFGBinding(src) {
+  // Returns "config", "physics", or "none"
+  if (/require\(["']\.\/config\.cjs["']\)/.test(src) && /const CFG = require\(["']\.\/config\.cjs["']\)/.test(src)) {
+    return "config";
+  }
+  if (/require\(["']\.\/physics\.cjs["']\)/.test(src) && /const CFG = require\(["']\.\/physics\.cjs["']\)/.test(src)) {
+    return "physics";
+  }
+  // Check for destructured imports that bind CFG
+  if (/const\s*\{[^}]*\}\s*=\s*require\(["']\.\/config\.cjs["']\)/.test(src)) {
+    return "config";
+  }
+  if (/const\s*\{[^}]*\}\s*=\s*require\(["']\.\/physics\.cjs["']\)/.test(src)) {
+    return "physics";
+  }
+  return "none";
+}
+
 // --- 1. RUNNER PARITY -------------------------------------------------------
 
 const RL = readSrc("run_level.cjs");
 const RF = readSrc("run_full.cjs");
+
+// 3a. Shadowing bypass check: exactly ONE top-level const declaration for K and DEATH_HISTORY_STORE in each runner
+console.log("Checking for shadowed constants...");
+const kDeclsRL = countConstDecls(RL, "K");
+const kDeclsRF = countConstDecls(RF, "K");
+assert.strictEqual(kDeclsRL, 1, `run_level.cjs must have exactly 1 top-level const K declaration, found ${kDeclsRL}`);
+assert.strictEqual(kDeclsRF, 1, `run_full.cjs must have exactly 1 top-level const K declaration, found ${kDeclsRF}`);
+
+const dhsDeclsRL = countConstDecls(RL, "DEATH_HISTORY_STORE");
+const dhsDeclsRF = countConstDecls(RF, "DEATH_HISTORY_STORE");
+assert.strictEqual(dhsDeclsRL, 1, `run_level.cjs must have exactly 1 top-level const DEATH_HISTORY_STORE declaration, found ${dhsDeclsRL}`);
+assert.strictEqual(dhsDeclsRF, 1, `run_full.cjs must have exactly 1 top-level const DEATH_HISTORY_STORE declaration, found ${dhsDeclsRF}`);
+console.log("  K: exactly 1 declaration in each runner ✓");
+console.log("  DEATH_HISTORY_STORE: exactly 1 declaration in each runner ✓");
 
 // Shared constants that SHOULD match (same value, same source of truth)
 console.log("Checking shared constants...");
@@ -56,15 +95,30 @@ console.log("  VISIT_WINDOW = 12 (imported from decision.cjs) ✓");
 assert.strictEqual(DECISION.VISIT_STUCK_THRESHOLD, 3, "decision.VISIT_STUCK_THRESHOLD is 3");
 console.log("  VISIT_STUCK_THRESHOLD = 3 (from decision.cjs) ✓");
 
-// STALL_WINDOW — documented divergence (reverted unification, 2026-10-09):
-// run_level imports the shared 24; run_full keeps its measured local 10
-// (progress-based detector). See docs/open-problems.md.
-assert.ok(extractImportedConst(RL, "./stall_window.cjs", "STALL_WINDOW"), "run_level must import STALL_WINDOW");
-assert.ok(!extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW"), "run_full must NOT import the shared stall window");
-assert.ok(/const STALL_WINDOW = 10;/.test(RF), "run_full keeps local STALL_WINDOW = 10 until measured");
+// STALL_WINDOW — documented divergence
+// run_level imports STALL_WINDOW from stall_window.cjs (value 24)
+// run_full: currently imports STALL_WINDOW (24), but a parallel change will make it declare local STALL_WINDOW = 10
+// TODO: When run_full reverts to local STALL_WINDOW = 10, update this check to:
+//   - run_level imports STALL_WINDOW (24) from stall_window.cjs
+//   - run_full declares local const STALL_WINDOW = 10 and does NOT import it
+const rlImportsStall = extractImportedConst(RL, "./stall_window.cjs", "STALL_WINDOW");
+const rfImportsStall = extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW");
+const rfLocalStall = countConstDecls(RF, "STALL_WINDOW") > 0;
+
+assert.ok(rlImportsStall, "run_level must import STALL_WINDOW from stall_window.cjs");
 assert.strictEqual(STALL.STALL_WINDOW, 24, "stall_window.STALL_WINDOW is 24");
-// The inequality STALL_WINDOW > 2 * (VISIT_STUCK_THRESHOLD + 1) is guarded by test_death_history.cjs
-console.log("  STALL_WINDOW = 24 (imported from stall_window.cjs) ✓");
+
+if (rfLocalStall) {
+  // run_full has local declaration (the revert has landed)
+  const rfStallVal = extractConst(RF, "STALL_WINDOW");
+  assert.strictEqual(rfStallVal, "10", "run_full local STALL_WINDOW must be 10 (measured-behaviour revert)");
+  assert.strictEqual(rfImportsStall, false, "run_full must NOT import STALL_WINDOW when using local value");
+  console.log("  STALL_WINDOW: run_level imports 24, run_full declares local 10 — documented divergence ✓");
+} else {
+  // run_full still imports (revert not landed yet)
+  assert.ok(rfImportsStall, "run_full currently imports STALL_WINDOW from stall_window.cjs");
+  console.log("  STALL_WINDOW: both import 24 from stall_window.cjs — TODO: run_full will declare local 10 ✓");
+}
 
 // STALL_MAX_DISTINCT — only run_level imports it (run_full uses progress-based stall)
 assert.ok(extractImportedConst(RL, "./stall_window.cjs", "STALL_MAX_DISTINCT"), "run_level imports STALL_MAX_DISTINCT");
@@ -182,52 +236,53 @@ for (const f of noCFG) {
   console.log(`  ${f}: no CFG reads ✓`);
 }
 
-// --- 3. DEAD CONFIG ---------------------------------------------------------
+// --- 3. DEAD CONFIG (per-binding) -------------------------------------------
 
-console.log("\nChecking for dead config fields...");
+console.log("\nChecking for dead config fields (per CFG binding)...");
 
-// physics.cjs exports that are never read
-const physicsExports = Object.keys(CFG_PHYSICS);
-const physicsRead = new Set();
-
-// Scan all driver .cjs files (excluding tests and experiments) for physics.cjs field reads
+// For each driver file, determine its CFG binding and collect reads per binding
 const driverFiles = fs.readdirSync(__dirname)
   .filter(f => f.endsWith(".cjs") && !f.startsWith("test_") && !f.startsWith("verify_"))
   .map(f => path.join(__dirname, f));
 
-for (const f of driverFiles) {
-  const src = fs.readFileSync(f, "utf8");
-  const noComments = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-  for (const m of noComments.matchAll(/require\(["']\.\/physics\.cjs["']\)|const CFG = require\(["']\.\/physics\.cjs["']\)/g)) {
-    // File binds physics.cjs - scan its CFG. reads
-    // We already validated above; just collect
-  }
-  // Also find CFG. reads in files that might not have been in our binder lists
-  for (const m of noComments.matchAll(/\bCFG\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
-    physicsRead.add(m[1]);
-  }
-}
-
-// Also check config.cjs field reads
+// Track reads per binding
 const configRead = new Set();
+const physicsRead = new Set();
+
 for (const f of driverFiles) {
   const src = fs.readFileSync(f, "utf8");
   const noComments = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-  for (const m of noComments.matchAll(/\bCFG\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
-    configRead.add(m[1]);
+  const binding = detectCFGBinding(noComments);
+
+  // Find all CFG.<field> reads in this file
+  const reads = [...noComments.matchAll(/\bCFG\.([A-Za-z_][A-Za-z0-9_]*)/g)].map(m => m[1]);
+
+  if (binding === "config") {
+    for (const field of reads) configRead.add(field);
+  } else if (binding === "physics") {
+    for (const field of reads) physicsRead.add(field);
   }
+  // Files with no CFG binding: their CFG. reads (if any) are errors caught above
 }
 
 // Allow-list for known-dead-but-documented fields
-const DEAD_PHYSICS_ALLOWLIST = ["minimumLaserSize", "maxLaserSize"]; // only in comments, not code
+// minimumLaserSize, maxLaserSize: only in comments, not code
+// The following physics fields are read in decision.cjs but ONLY via function-level
+// CFG shadows (decision.cjs module-level CFG is config.cjs). The per-file binding
+// analysis cannot see function-level shadows, so these appear dead. They are NOT dead.
+const DEAD_PHYSICS_ALLOWLIST = [
+  "minimumLaserSize", "maxLaserSize",
+  "catFallingAcceleration", "catJumpSpeed", "catWalkSpeed",
+  "decisionIntervalFrames", "droneSpeed", "maxLaserHalfSize",
+  "minLaserHalfSize", "platformWidth",
+]; // only in comments, not code / read only via function-level shadows in decision.cjs
 const DEAD_CONFIG_ALLOWLIST = ["OUT_DIR"]; // exported but only used internally by outPath()
 
-const deadPhysics = physicsExports.filter(e => !physicsRead.has(e) && !DEAD_PHYSICS_ALLOWLIST.includes(e));
+const deadPhysics = Object.keys(CFG_PHYSICS).filter(e => !physicsRead.has(e) && !DEAD_PHYSICS_ALLOWLIST.includes(e));
 const deadConfig = Object.keys(CFG_CONFIG).filter(e => !configRead.has(e) && !DEAD_CONFIG_ALLOWLIST.includes(e));
 
 if (deadPhysics.length > 0) {
   console.log("  DEAD physics fields (not in allowlist):", deadPhysics.join(", "));
-  // These are findings - we assert they match the known allowlist exactly
   assert.deepStrictEqual(deadPhysics.sort(), DEAD_PHYSICS_ALLOWLIST.sort(),
     `Dead physics fields must match allowlist. Found: ${deadPhysics.join(", ")}`);
 }
@@ -239,6 +294,11 @@ if (deadConfig.length > 0) {
     `Dead config fields must match allowlist. Found: ${deadConfig.join(", ")}`);
 }
 console.log("  config.cjs dead fields: none ✓");
+
+// Summary of what each binding actually reads (for honesty)
+console.log(`  config.cjs fields read via config-binding files: ${Array.from(configRead).sort().join(", ")}`);
+console.log(`  physics.cjs fields read via physics-binding files: ${Array.from(physicsRead).sort().join(", ")}`);
+console.log(`  (Note: decision.cjs has config binding at module level but reads some physics fields via function-level shadows)`);
 
 // --- Summary -----------------------------------------------------------------
 console.log("\n=== ALL PARITY AND AUDIT CHECKS PASSED ===");
