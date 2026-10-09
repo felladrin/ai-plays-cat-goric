@@ -95,30 +95,23 @@ console.log("  VISIT_WINDOW = 12 (imported from decision.cjs) ✓");
 assert.strictEqual(DECISION.VISIT_STUCK_THRESHOLD, 3, "decision.VISIT_STUCK_THRESHOLD is 3");
 console.log("  VISIT_STUCK_THRESHOLD = 3 (from decision.cjs) ✓");
 
-// STALL_WINDOW — documented divergence
-// run_level imports STALL_WINDOW from stall_window.cjs (value 24)
-// run_full: currently imports STALL_WINDOW (24), but a parallel change will make it declare local STALL_WINDOW = 10
-// TODO: When run_full reverts to local STALL_WINDOW = 10, update this check to:
-//   - run_level imports STALL_WINDOW (24) from stall_window.cjs
-//   - run_full declares local const STALL_WINDOW = 10 and does NOT import it
+// STALL_WINDOW — documented divergence (unification reverted 2026-10-09):
+// run_level imports STALL_WINDOW from stall_window.cjs (value 24);
+// run_full declares local STALL_WINDOW = 10 (measured ladder behaviour,
+// progress-based detector). See docs/open-problems.md.
 const rlImportsStall = extractImportedConst(RL, "./stall_window.cjs", "STALL_WINDOW");
 const rfImportsStall = extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW");
 const rfLocalStall = countConstDecls(RF, "STALL_WINDOW") > 0;
 
 assert.ok(rlImportsStall, "run_level must import STALL_WINDOW from stall_window.cjs");
 assert.strictEqual(STALL.STALL_WINDOW, 24, "stall_window.STALL_WINDOW is 24");
-
-if (rfLocalStall) {
-  // run_full has local declaration (the revert has landed)
+assert.ok(rfLocalStall, "run_full must declare its local STALL_WINDOW");
+{
   const rfStallVal = extractConst(RF, "STALL_WINDOW");
   assert.strictEqual(rfStallVal, "10", "run_full local STALL_WINDOW must be 10 (measured-behaviour revert)");
   assert.strictEqual(rfImportsStall, false, "run_full must NOT import STALL_WINDOW when using local value");
-  console.log("  STALL_WINDOW: run_level imports 24, run_full declares local 10 — documented divergence ✓");
-} else {
-  // run_full still imports (revert not landed yet)
-  assert.ok(rfImportsStall, "run_full currently imports STALL_WINDOW from stall_window.cjs");
-  console.log("  STALL_WINDOW: both import 24 from stall_window.cjs — TODO: run_full will declare local 10 ✓");
 }
+console.log("  STALL_WINDOW: run_level imports 24, run_full declares local 10 — documented divergence ✓");
 
 // STALL_MAX_DISTINCT — only run_level imports it (run_full uses progress-based stall)
 assert.ok(extractImportedConst(RL, "./stall_window.cjs", "STALL_MAX_DISTINCT"), "run_level imports STALL_MAX_DISTINCT");
