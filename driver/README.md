@@ -172,7 +172,7 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools (need live harness + Playwright) |
 | `cadence.cjs` | how many frames one decision runs for, and when the model re-decides |
 | `survey_levels.sh` | run levels in isolation (needs live harness + endpoint), one row per level in `out/survey_<endpoint>.tsv` |
-| `test_all.cjs` | runs all test suites (9 PASS + 1 pinned EXPECTED-RED). `npm test` in this folder. |
+| `test_all.cjs` | runs all test suites (10 PASS + 1 pinned EXPECTED-RED). `npm test` in this folder. |
 | `test_death_history.cjs` | death history, revisit escalation, and stall detector checks |
 | `test_descent_gate.cjs` | descent point offer/stranding gate checks |
 | `test_sticky_objective.cjs` | sticky objective lock checks |
@@ -182,6 +182,7 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `test_descent_laser_gate.cjs` | descent laser gate checks |
 | `test_simulate_clock.cjs` | simulate() clock argument audit checks |
 | `test_runner_parity.cjs` | run_level/run_full parity checks |
+| `test_census_pins.cjs` | census determinism + pinned verdicts/counts for `experiments/census_simulate_clock.cjs` |
 | `test_objective_lock.cjs` | objective lock and jump-landing note checks (red by design) |
 
 The policy, the results, the dead ends and the open problems are in [`../docs/`](../docs/README.md).

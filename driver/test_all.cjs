@@ -14,6 +14,7 @@ const SUITES = [
   "test_descent_laser_gate.cjs",
   "test_simulate_clock.cjs",
   "test_runner_parity.cjs",
+  "test_census_pins.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.

@@ -68,7 +68,7 @@ These were verified in the current tree. Two were fixed on 2026-10-08 and are ma
 
 ### `npm test` does not run every test — FIXED 2026-10-09
 
-`npm test` used to run `test_death_history.cjs` only, while the other suites existed beside it — "`npm test` green" did not mean all tests were green. Fixed: `npm test` now runs `test_all.cjs`, which runs all ten suites and pins `test_objective_lock.cjs`'s red-by-design status (it asserts the jump-landing note fires on level 4 only, and the same-floor variant fires on level 1; it is the gate on re-enabling that note, see [dead-ends.md](dead-ends.md)) to its exact failure line — the runner fails if that suite goes green or goes red for any other reason. A CI workflow (`.github/workflows/ci.yml`) runs the same suite on push and PR.
+`npm test` used to run `test_death_history.cjs` only, while the other suites existed beside it — "`npm test` green" did not mean all tests were green. Fixed: `npm test` now runs `test_all.cjs`, which runs all eleven suites and pins `test_objective_lock.cjs`'s red-by-design status (it asserts the jump-landing note fires on level 4 only, and the same-floor variant fires on level 1; it is the gate on re-enabling that note, see [dead-ends.md](dead-ends.md)) to its exact failure line — the runner fails if that suite goes green or goes red for any other reason. A CI workflow (`.github/workflows/ci.yml`) runs the same suite on push and PR.
 
 ### An unwinnable reset records nothing — FIXED 2026-10-08
 
