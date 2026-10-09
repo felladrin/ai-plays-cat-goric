@@ -158,7 +158,9 @@ function stubClient() {
   // Scope: this note must not appear on levels that already pass. Sweeping every
   // floor of levels 0-3 at walk-speed granularity, for every gem objective.
   const fs = require("fs");
-  const src = fs.readFileSync(require("path").join(__dirname, "..", "cat-goric-game/src/scripts/constants/config.ts"), "utf8");
+  const cfg = require("path").join(__dirname, "..", "cat-goric-game/src/scripts/constants/config.ts");
+  if (!fs.existsSync(cfg)) { console.error("FAIL: cat-goric-game submodule not initialized; run `git submodule update --init --recursive`"); process.exit(1); }
+  const src = fs.readFileSync(cfg, "utf8");
   const seg = src.slice(src.indexOf("gemsPositionsPerLevel"));
   const st = seg.indexOf("= [") + 2;
   let dep = 0, i = st;
