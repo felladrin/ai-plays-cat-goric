@@ -25,7 +25,7 @@ const GEM_HALF_HEIGHT = 8;
 // bracket matching rather than by a regex that would truncate on the first "]".
 function gemsFromConfig() {
   const src = fs.readFileSync(
-    path.join(__dirname, "..", "..", "src", "scripts", "constants", "config.ts"),
+    path.join(__dirname, "..", "..", "cat-goric-game", "src", "scripts", "constants", "config.ts"),
     "utf8",
   );
   const at = src.indexOf("gemsPositionsPerLevel");
