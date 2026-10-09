@@ -54,7 +54,7 @@ Sweep L0-L9 before believing anything.
 | `firstpick_sweep.cjs` | blast-radius sweep: which states have a DEAD first-pick across all levels/floors/x/mf |
 | `route_clock.cjs` | offline route-vs-clock analyzer; run with `--state` or level args for per-ordering feasibility |
 | `probe_strict.cjs` | whether JEV_STRICT changes classifier probabilities on objective/move questions (needs endpoint) |
-| `test_demo_skip.cjs` | validates the DEMO_KEEP level-skip rewrite against the real harness (needs playwright) |
+| `test_demo_skip.cjs` | validates the DEMO_KEEP level-skip rewrite against the real harness. Works: `npm run harness` from the repo root (wait for :5173), then `node test_demo_skip.cjs` here — chromium required, so it stays out of `test_all.cjs` (CI has no browser, and a suite entry needing a running server is a flake factory) |
 
 ### Need inputs a fresh clone lacks (run archives in `out/`, or `prompt_dump.jsonl`)
 
