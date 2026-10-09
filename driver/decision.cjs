@@ -958,10 +958,16 @@ function jumpLandingNote(snap, target) {
   // direction is the landing platform's side relative to the CAT (run keys hold
   // y, so test the platform x, not the key).
   const { simulate } = require("./arc.cjs");
+  // Real laser clock, not the frozen mf=1 the audit found (site 6,
+  // docs/simulate-clock-audit.md): the held-arc pick must survive the clock the
+  // cat actually faces, or the named launch x is chosen against a laser state
+  // that no longer exists. Offline blast radius 0.5% of prompts, zero menu
+  // changes (docs/blast-site6-clock.md).
+  const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
   let heldX = null, heldPlat = null;
   for (const x of good) {
     for (const dir of ["jump_left", "jump", "jump_right"]) {
-      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 1 (DEFECT-LIVE)
+      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, mfNow, { grounded: true });
       if (r.outcome !== "landed") continue;
       const rKey = REACH.platformKeyUnder(snap.level, r.x, r.y);
       if (rKey && rKey !== here && keeps(rKey)) {
