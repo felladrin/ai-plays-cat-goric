@@ -115,7 +115,7 @@ An earlier lettered-menu shim sent a *completed* user turn and asked the model t
 | `driver/run_level.cjs` | Play one level. |
 | `driver/run_full.cjs` | Play the ladder, with a level-0 regression gate that breaks out with stop reason `L0_regression_gate` if level 0 does not clear at 0 deaths. With `DEMO_KEEP_LEVELS` set it runs in demo mode: the levels outside the kept set are skipped on the portal advance, not deleted. |
 | `driver/run_stats.cjs` | Shared incremental flush on SIGTERM / SIGINT / crash, so a wall-clock timeout still leaves a machine-readable result. |
-| `driver/probe.cjs`, `driver/dump.cjs`, `driver/overlay_test.cjs` | Inspection tools. |
+| `driver/probe.cjs`, `driver/dump.cjs`, `driver/overlay_test.cjs` | Inspection tools (need live harness + Playwright). |
 | `driver/experiments/probe_move.cjs` | Replays an archived decision offline. Reproduces 244 of 250 attempted decisions exactly, so a prompt wording change is testable in seconds rather than by a 45-minute run. |
 | `driver/test_*.cjs` | The checks. See [open-problems.md](open-problems.md) for which ones `npm test` actually runs. |
 | `driver/video/` | The screencast pipeline. Built, never run against real footage. |
