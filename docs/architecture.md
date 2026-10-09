@@ -117,7 +117,7 @@ An earlier lettered-menu shim sent a *completed* user turn and asked the model t
 | `driver/run_stats.cjs` | Shared incremental flush on SIGTERM / SIGINT / crash, so a wall-clock timeout still leaves a machine-readable result. |
 | `driver/probe.cjs`, `driver/dump.cjs`, `driver/overlay_test.cjs` | Inspection tools (need live harness + Playwright). |
 | `driver/experiments/probe_move.cjs` | Replays an archived decision offline. Reproduces 244 of 250 attempted decisions exactly, so a prompt wording change is testable in seconds rather than by a 45-minute run. |
-| `driver/test_*.cjs` | The checks. See [open-problems.md](open-problems.md) for which ones `npm test` actually runs. |
+| `driver/test_*.cjs` | The checks. `npm test` runs them all via `test_all.cjs`; one suite is red by design and pinned. |
 | `driver/video/` | The screencast pipeline. Built, never run against real footage. |
 
 ## The decision overlay
