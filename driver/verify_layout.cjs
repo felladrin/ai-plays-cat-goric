@@ -4,7 +4,7 @@
 // game's own update loop reads, so stepping frames moves the real cat.
 const { chromium } = require("playwright");
 
-const URL = process.env.HARNESS_URL || "http://127.0.0.1:5174/harness.html";
+const URL = process.env.HARNESS_URL || "http://127.0.0.1:5173/harness.html";
 
 (async () => {
   const exec = process.env.CHROME || process.env.PLAYWRIGHT_CHROMIUM;
