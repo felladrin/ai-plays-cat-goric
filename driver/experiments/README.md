@@ -46,6 +46,7 @@ Sweep L0-L9 before believing anything.
 | `collect_table.cjs` | per-gem collectibility table and upward hop counts from reachability.cjs |
 | `diag_gate_blast_radius.cjs` | blast radius of the hop_points.cjs:116 one-character change (y231→y211 landing gate) |
 | `blast_site6_clock.cjs` | blast radius of the site-6 clock fix (real-mf prompt-diff over the synthetic grid; results in docs/blast-site6-clock.md) |
+| `blast_site78_clock.cjs` | blast radius of the candidate sites-7/8 clock fix (6.2% of prompts, all via the walk-off note; measured, not applied — see docs/simulate-clock-audit.md) |
 | `diag_hop_scan.cjs` | which filter in hopPoints rejects the y231→y211 landing, by first-reject tally |
 | `landings_hash.cjs` | SHA-256 of all `landingsFrom` + `graph` outputs (null control for additive reachability changes) |
 | `census_simulate_clock.cjs` | census of four constant-clock `simulate()` sites vs real-mf grid (sites 5,6,7,8 from simulate-clock-audit.md) |
