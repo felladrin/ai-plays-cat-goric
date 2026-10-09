@@ -134,7 +134,7 @@ function refuse(msg) { die(msg); }
 // ------------------------------------------------------- level gem table (static source)
 
 function loadGemTable() {
-  const p = path.join(DRIVER, "..", "src", "scripts", "constants", "config.ts");
+  const p = path.join(DRIVER, "..", "cat-goric-game", "src", "scripts", "constants", "config.ts");
   const src = fs.readFileSync(p, "utf8");
   const at = src.indexOf("gemsPositionsPerLevel");
   if (at < 0) die(`gemsPositionsPerLevel not found in ${p}`);

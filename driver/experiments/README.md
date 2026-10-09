@@ -38,14 +38,14 @@ Sweep L0-L9 before believing anything.
 
 | script | issue |
 |---|---|
-| `gem_floor_offset.cjs` | looks in `src/` not `cat-goric-game/src/` |
-| `collect_table.cjs` | looks in `src/` not `cat-goric-game/src/` |
-| `probe_move.cjs` | looks in `src/` not `cat-goric-game/src/` (refuses on missing `--run` first) |
 
 ### Offline-runnable diagnostics (no doc references; run clean without inputs)
 
 | script | what it measures |
 |---|---|
+| `gem_floor_offset.cjs` | census of platform/gem vertical offsets; validates the "on THIS floor" 26px bound in decision.cjs |
+| `collect_table.cjs` | per-gem collectibility table and upward hop counts from reachability.cjs |
+| `probe_move.cjs` | reconstructs one decision's prompt from an archive and re-asks the endpoint (needs --run archive) |
 | `diag_gate_blast_radius.cjs` | blast radius of the hop_points.cjs:116 one-character change (y231→y211 landing gate) |
 | `diag_hop_scan.cjs` | which filter in hopPoints rejects the y231→y211 landing, by first-reject tally |
 | `landings_hash.cjs` | SHA-256 of all `landingsFrom` + `graph` outputs (null control for additive reachability changes) |

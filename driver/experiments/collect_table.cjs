@@ -21,7 +21,7 @@ const GEM_HALF = 8;
 
 const gemPositions = () => {
   const src = fs.readFileSync(
-    path.join(__dirname, "..", "..", "src", "scripts", "constants", "config.ts"), "utf8");
+    path.join(__dirname, "..", "..", "cat-goric-game", "src", "scripts", "constants", "config.ts"), "utf8");
   const start = src.indexOf("gemsPositionsPerLevel");
   const body = src.slice(start, src.indexOf("\n];", start));
   const levels = [];
