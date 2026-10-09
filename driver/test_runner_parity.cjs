@@ -101,17 +101,19 @@ console.log("  VISIT_STUCK_THRESHOLD = 3 (from decision.cjs) ✓");
 // progress-based detector). See docs/open-problems.md.
 const rlImportsStall = extractImportedConst(RL, "./stall_window.cjs", "STALL_WINDOW");
 const rfImportsStall = extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW");
-const rfLocalStall = countConstDecls(RF, "STALL_WINDOW") > 0;
+const rlLocalStall = countConstDecls(RL, "STALL_WINDOW");
+const rfLocalStall = countConstDecls(RF, "STALL_WINDOW");
 
 assert.ok(rlImportsStall, "run_level must import STALL_WINDOW from stall_window.cjs");
 assert.strictEqual(STALL.STALL_WINDOW, 24, "stall_window.STALL_WINDOW is 24");
-assert.ok(rfLocalStall, "run_full must declare its local STALL_WINDOW");
+assert.strictEqual(rlLocalStall, 0, "run_level must have exactly 0 const STALL_WINDOW declarations (import only)");
+assert.strictEqual(rfLocalStall, 1, "run_full must have exactly 1 const STALL_WINDOW declaration");
 {
   const rfStallVal = extractConst(RF, "STALL_WINDOW");
   assert.strictEqual(rfStallVal, "10", "run_full local STALL_WINDOW must be 10 (measured-behaviour revert)");
   assert.strictEqual(rfImportsStall, false, "run_full must NOT import STALL_WINDOW when using local value");
 }
-console.log("  STALL_WINDOW: run_level imports 24, run_full declares local 10 — documented divergence ✓");
+console.log("  STALL_WINDOW: run_level imports 24 (0 local), run_full declares local 10 (1 local) — documented divergence ✓");
 
 // STALL_MAX_DISTINCT — only run_level imports it (run_full uses progress-based stall)
 assert.ok(extractImportedConst(RL, "./stall_window.cjs", "STALL_MAX_DISTINCT"), "run_level imports STALL_MAX_DISTINCT");

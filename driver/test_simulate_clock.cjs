@@ -5,6 +5,13 @@
 //   // SIMULATE_CLOCK_AUDIT: constant <value> (VERDICT)
 // Real-clock sites must pass a variable (not a numeric literal or named constant).
 // Any new unmarked call site fails the test.
+//
+// LIMITS (text-based guard, accepted):
+// - Only the FIRST simulate( on a line is detected; a second call on the same line
+//   (e.g. a = simulate(..., mf, ...), b = simulate(..., 0, ...)) passes unmarked.
+// - An aliased import (const { simulate: sim } = require("./arc.cjs")) defeats the
+//   receiver check. Both bypasses require deliberate code changes; the census + the
+//   audit doc are the real enforcement.
 
 "use strict";
 
