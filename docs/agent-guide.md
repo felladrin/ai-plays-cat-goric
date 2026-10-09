@@ -2,7 +2,7 @@
 
 The contract and the reading order for a fresh agent session on this repo. It is written
 to be handed to an agent as its first instruction, and to stay true across commits: current
-numbers live in [README.md](README.md) ("Where it stands") and [results.md](results.md),
+numbers live in [readme.md](../readme.md) ("Where it stands") and [results.md](results.md),
 not here.
 
 ## The task
