@@ -21,6 +21,7 @@ const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
+const { STALL_WINDOW } = require("./stall_window.cjs");
 
 const URL = CFG.HARNESS_URL;
 const DT = 1 / 60;
@@ -380,7 +381,6 @@ const VIDEO_DIR = CFG.outPath("video");
   // 2-cycle (A,B,A,B) where the cat treads water without dying or collecting.
   // Over a sliding window of the last STALL_WINDOW decision signatures, if the
   // number of DISTINCT rounded positions is <= STALL_MAX_DISTINCT, it is a stall.
-  const STALL_WINDOW = 10;
   const STALL_MIN_PROGRESS_PX = 8; // best distance-to-objective must improve by more than this over the window
   const stallWindow = [];
   let lastChosen = null; // { key, action } of the most recent decision
