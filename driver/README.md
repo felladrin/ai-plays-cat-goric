@@ -169,9 +169,9 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `run_full.cjs` | play the ladder, with an L0 regression gate |
 | `config.cjs` | environment resolution |
 | `physics.cjs`, `level_data.cjs` | constants mirrored from the game |
-| `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools |
+| `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools (need live harness + Playwright) |
 | `cadence.cjs` | how many frames one decision runs for, and when the model re-decides |
-| `survey_levels.sh` | run levels in isolation, one row per level in `out/survey_<endpoint>.tsv` |
+| `survey_levels.sh` | run levels in isolation (needs live harness + endpoint), one row per level in `out/survey_<endpoint>.tsv` |
 | `test_death_history.cjs` | the checks. `npm test` in this folder. |
 
 The policy, the results, the dead ends and the open problems are in [`../docs/`](../docs/README.md).
