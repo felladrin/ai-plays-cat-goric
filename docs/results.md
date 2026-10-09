@@ -248,7 +248,7 @@ GEM_FACTS=1 node driver/experiments/probe_clef.cjs --objective \
   '{"x":176.25,"y":231,"ground":1,"mf":138,"alive":[0]}'
 ```
 
-The level 12 trace is the source of the death-mechanism analysis in `TRACE_L12_death_mechanism_20260927-195458.md`, which is in git history rather than the tree: `git show abc6174:docs/archive/probes/TRACE_L12_death_mechanism_20260927-195458.md`. See [README.md](README.md) for how the archive is stored.
+The level 12 trace is the source of the death-mechanism analysis in `TRACE_L12_death_mechanism_20260927-195458.md`, which is in git history rather than the tree: `git show abc6174:docs/archive/probes/TRACE_L12_death_mechanism_20260927-195458.md`. See [readme.md](../readme.md) for how the archive is stored.
 
 ## Post-fix verification runs (2026-10-08, `clef`, `out/exp_fix`)
 
