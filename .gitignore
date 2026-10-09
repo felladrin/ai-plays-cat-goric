@@ -13,3 +13,4 @@ driver/node_modules/
 
 .pi/
 opencode.json
+__pycache__/
