@@ -34,27 +34,36 @@ Sweep L0-L9 before believing anything.
 | `census_airborne_lock.cjs` | `decision.patched_airborne.cjs` |
 | `check_ascent_crit.cjs` | `decision.patched_ascent.cjs`, `decision.patched_ascent_crit.cjs` |
 
-### Broken — wrong path to `cat-goric-game/src/scripts/constants/config.ts`
+### Fixed 2026-10-09 — stale path to `cat-goric-game/src/scripts/constants/config.ts`
 
-| script | issue |
-|---|---|
+`gem_floor_offset.cjs`, `collect_table.cjs` and `probe_move.cjs` joined `../../src/...`, a path that never existed after the repo squash; they now point at the submodule and run (8198770).
 
-### Offline-runnable diagnostics (no doc references; run clean without inputs)
+### Offline-runnable diagnostics (were undocumented before the 2026-10-09 audit)
 
 | script | what it measures |
 |---|---|
 | `gem_floor_offset.cjs` | census of platform/gem vertical offsets; validates the "on THIS floor" 26px bound in decision.cjs |
 | `collect_table.cjs` | per-gem collectibility table and upward hop counts from reachability.cjs |
-| `probe_move.cjs` | reconstructs one decision's prompt from an archive and re-asks the endpoint (needs --run archive) |
 | `diag_gate_blast_radius.cjs` | blast radius of the hop_points.cjs:116 one-character change (y231→y211 landing gate) |
 | `diag_hop_scan.cjs` | which filter in hopPoints rejects the y231→y211 landing, by first-reject tally |
 | `landings_hash.cjs` | SHA-256 of all `landingsFrom` + `graph` outputs (null control for additive reachability changes) |
-| `probe_urgency_l12.cjs` | whether a DESTROYED-FIRST superlative on gem_b moves the classifier at L12 spawn (needs endpoint) |
 | `census_simulate_clock.cjs` | census of three constant-clock `simulate()` sites vs real-mf grid (sites 5,7,8 from simulate-clock-audit.md) |
 | `firstpick_sweep.cjs` | blast-radius sweep: which states have a DEAD first-pick across all levels/floors/x/mf |
 | `route_clock.cjs` | offline route-vs-clock analyzer; run with `--state` or level args for per-ordering feasibility |
-| `probe_strict.cjs` | whether JEV_STRICT changes classifier probabilities on objective/move questions (needs endpoint) |
-| `test_demo_skip.cjs` | validates the DEMO_KEEP level-skip rewrite against the real harness. Works: `npm run harness` from the repo root (wait for :5173), then `node test_demo_skip.cjs` here — chromium required, so it stays out of `test_all.cjs` (CI has no browser, and a suite entry needing a running server is a flake factory) |
+
+### Need a live endpoint (start a model server first)
+
+| script | what it measures |
+|---|---|
+| `probe_move.cjs` | reconstructs one decision's prompt from an archive and re-asks the endpoint (also needs a `--run` archive) |
+| `probe_urgency_l12.cjs` | whether a DESTROYED-FIRST superlative on gem_b moves the classifier at L12 spawn |
+| `probe_strict.cjs` | whether JEV_STRICT changes classifier probabilities on objective/move questions |
+
+### Need the harness page and a browser
+
+| script | note |
+|---|---|
+| `test_demo_skip.cjs` | validates the DEMO_KEEP level-skip rewrite against the real harness. Works: `npm run harness` from the repo root (wait for :5173), then `node test_demo_skip.cjs` here. It stays out of `test_all.cjs`: the suite runs without a server, and a suite entry that needs a running one is a flake factory. CI covers browser checks in its own `browser` job (verify_layout, overlay_test), not through `test_all.cjs`. |
 
 ### Need inputs a fresh clone lacks (run archives in `out/`, or `prompt_dump.jsonl`)
 

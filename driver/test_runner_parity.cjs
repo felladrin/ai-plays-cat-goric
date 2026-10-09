@@ -56,9 +56,12 @@ console.log("  VISIT_WINDOW = 12 (imported from decision.cjs) ✓");
 assert.strictEqual(DECISION.VISIT_STUCK_THRESHOLD, 3, "decision.VISIT_STUCK_THRESHOLD is 3");
 console.log("  VISIT_STUCK_THRESHOLD = 3 (from decision.cjs) ✓");
 
-// STALL_WINDOW — both import from stall_window.cjs (fixed 2026-10-09)
+// STALL_WINDOW — documented divergence (reverted unification, 2026-10-09):
+// run_level imports the shared 24; run_full keeps its measured local 10
+// (progress-based detector). See docs/open-problems.md.
 assert.ok(extractImportedConst(RL, "./stall_window.cjs", "STALL_WINDOW"), "run_level must import STALL_WINDOW");
-assert.ok(extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW"), "run_full must import STALL_WINDOW");
+assert.ok(!extractImportedConst(RF, "./stall_window.cjs", "STALL_WINDOW"), "run_full must NOT import the shared stall window");
+assert.ok(/const STALL_WINDOW = 10;/.test(RF), "run_full keeps local STALL_WINDOW = 10 until measured");
 assert.strictEqual(STALL.STALL_WINDOW, 24, "stall_window.STALL_WINDOW is 24");
 // The inequality STALL_WINDOW > 2 * (VISIT_STUCK_THRESHOLD + 1) is guarded by test_death_history.cjs
 console.log("  STALL_WINDOW = 24 (imported from stall_window.cjs) ✓");

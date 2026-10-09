@@ -635,21 +635,27 @@ let __pending = Promise.resolve();
 // was aborted at 10 decisions, when escalation needs ~8 to start sampling.
 __pending = __pending.then(async () => {
   const fs = require("fs"), path = require("path");
-  // Both runners now import STALL_WINDOW from the shared stall_window.cjs module.
-  // Verify the shared value satisfies the inequality, and that both runners import it.
+  // run_level's distinct-position abort must outlast the escalation: the shared
+  // window it imports has to exceed 2 * (VISIT_STUCK_THRESHOLD + 1).
   const shared = require("./stall_window.cjs");
   const win = shared.STALL_WINDOW;
   const needed = 2 * (d.VISIT_STUCK_THRESHOLD + 1);
   assert(Number.isInteger(win) && win > needed,
     `Shared STALL_WINDOW (${win}) must exceed the ${needed} decisions a two-position ` +
     `oscillation needs before escalation fires, or the abort always wins`);
-  // Verify both runners import from the shared module.
-  for (const f of ["run_level.cjs", "run_full.cjs"]) {
-    const src = fs.readFileSync(path.join(__dirname, f), "utf8");
-    assert(/require\("\.\/stall_window\.cjs"\)/.test(src),
-      `${f} must import STALL_WINDOW from stall_window.cjs`);
-  }
-  console.log(`OK: shared stall abort (${win}) is patient enough for escalation (${needed}); both runners import it`);
+  const rl = fs.readFileSync(path.join(__dirname, "run_level.cjs"), "utf8");
+  assert(/require\("\.\/stall_window\.cjs"\)/.test(rl),
+    "run_level.cjs must import STALL_WINDOW from stall_window.cjs");
+  // run_full's stall detector is progress-based, not position-distinct; its
+  // window is a measured ladder value, deliberately NOT the shared one
+  // (reverted 2026-10-09, see docs/open-problems.md). Pin the documented shape:
+  // local 10, no import of the shared module.
+  const rf = fs.readFileSync(path.join(__dirname, "run_full.cjs"), "utf8");
+  assert(!/require\("\.\/stall_window\.cjs"\)/.test(rf),
+    "run_full.cjs must NOT import the shared stall window (progress-based detector, measured value)");
+  assert(/const STALL_WINDOW = 10;/.test(rf),
+    "run_full.cjs keeps its local STALL_WINDOW = 10 until a live ladder measurement justifies a change");
+  console.log(`OK: run_level stall abort (${win}) outlasts escalation (${needed}); run_full keeps its measured local 10`);
 });
 
 // Hop points: reachable neighbouring platforms, for when the route on is not the

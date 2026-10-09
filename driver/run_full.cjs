@@ -21,7 +21,6 @@ const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
-const { STALL_WINDOW } = require("./stall_window.cjs");
 
 const URL = CFG.HARNESS_URL;
 const DT = 1 / 60;
@@ -378,10 +377,16 @@ const VIDEO_DIR = CFG.outPath("video");
     timing: { classifierMs, stepMs, decisions: Object.values(levels).reduce((a, L) => a + L.decisions, 0) },
     missingLabelStats: (typeof client.getMissingLabelStats === "function") ? client.getMissingLabelStats() : null,
   }), { exitOnSignal: false }); // graceful: signal flushes but does NOT exit, so the loop can break and finalise the video
-  // Oscillation-aware stall detector. Catches both same-state repetition AND a
-  // 2-cycle (A,B,A,B) where the cat treads water without dying or collecting.
-  // Over a sliding window of the last STALL_WINDOW decision signatures, if the
-  // number of DISTINCT rounded positions is <= STALL_MAX_DISTINCT, it is a stall.
+  // Oscillation-aware stall detector, progress-based: over a sliding window of
+  // the last STALL_WINDOW decision signatures the best distance-to-objective
+  // must improve by more than STALL_MIN_PROGRESS_PX. This window is NOT the
+  // run_level one: the "10 loses the race with escalation" measurement (see
+  // docs/open-problems.md) was made against run_level's distinct-position
+  // abort, not this detector, so unifying it here was an unmeasured behaviour
+  // change and was reverted 2026-10-09. 10 is the value every pre-2026-10-09
+  // ladder archive was produced with; changing it needs a live ladder
+  // measurement first.
+  const STALL_WINDOW = 10;
   const STALL_MIN_PROGRESS_PX = 8; // best distance-to-objective must improve by more than this over the window
   const stallWindow = [];
   let lastChosen = null; // { key, action } of the most recent decision
