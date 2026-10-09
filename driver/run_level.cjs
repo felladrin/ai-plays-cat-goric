@@ -374,6 +374,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
       // duration_ms = (endWallMs - creation_time) + 1040 and compares it with
       // ffprobe. Agreement to a few tens of ms validates every stamp in this file.
     },
+    missingLabelStats: (typeof client.getMissingLabelStats === "function") ? client.getMissingLabelStats() : null,
   }));
   // The game resets the level inside stepFrame, so by the time a death is
   // detected the canvas already shows the respawn. Keep a rolling frame from the
@@ -736,6 +737,10 @@ const r2 = (n) => Math.round(n * 100) / 100;
   console.log(`decisions made: ${decisions}`);
   console.log(`deaths: ${deaths}`);
   console.log(`page errors: ${pageErrors.length ? pageErrors.join("; ") : "none"}`);
+  const missingLabelStats = (typeof client.getMissingLabelStats === "function") ? client.getMissingLabelStats() : null;
+  if (missingLabelStats && (missingLabelStats.missingCount > 0 || missingLabelStats.missingLabels > 0)) {
+    console.log(`missing label stats: floor applied ${missingLabelStats.missingCount} time(s), ${missingLabelStats.missingLabels} label(s) hit`);
+  }
 
   // Dump the decision log for inspection.
   fs.writeFileSync(
@@ -762,6 +767,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
           epochHintMs: videoEpochHintMs,
           endWallMs,
         },
+        missingLabelStats,
       },
       null,
       2

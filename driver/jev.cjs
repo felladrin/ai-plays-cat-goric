@@ -352,6 +352,8 @@ function makeQwenLocalClient(opts = {}) {
     labels.forEach((L, i) => { probs[L] = exps[i] / sum; });
     return probs;
   }
+  labelsToProbs.missingCount = 0;
+  labelsToProbs.missingLabels = 0;
 
   async function classify(state, questions) {
     const qEntries = Object.entries(questions);
@@ -416,7 +418,7 @@ function makeQwenLocalClient(opts = {}) {
     return answers;
   }
 
-  return { classify, baseUrl, model, JevHardError };
+  return { classify, baseUrl, model, JevHardError, getMissingLabelStats: () => ({ missingCount: labelsToProbs.missingCount, missingLabels: labelsToProbs.missingLabels }) };
 }
 
 // halogen-flash-server 0.13.8 (#100) scores a label in one forward pass:
