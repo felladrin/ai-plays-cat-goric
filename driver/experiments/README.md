@@ -66,6 +66,14 @@ Sweep L0-L9 before believing anything.
 | script | note |
 |---|---|
 | `test_demo_skip.cjs` | validates the DEMO_KEEP level-skip rewrite against the real harness. Works: `npm run harness` from the repo root (wait for :5173), then `node test_demo_skip.cjs` here. It stays out of `test_all.cjs`: the suite runs without a server, and a suite entry that needs a running one is a flake factory. CI covers browser checks in its own `browser` job (verify_layout, overlay_test), not through `test_all.cjs`. |
+| `test_overlay_paints.cjs` | checks the decision sidebar actually paints and the recorder captures it (the 2026-09-23 recordings were 99.9% duplicate frames). Same harness requirement as `test_demo_skip.cjs`. |
+
+### Reference variants — not runnable in place, kept for history
+
+| file | what it is |
+|---|---|
+| `decision.descent-experiment.cjs` | a fork of decision construction from the descent-experiment era; requires `./config.cjs` relative to `driver/`, so it only resolves when copied next to `decision.cjs`. Historical record of the two-call classifier design, not a tool. |
+| `test_descent_criteria.reverted.cjs` | the reverted descent-criteria test, standalone on purpose (an earlier assert in the main suite throws and would mask it). Kept to document what was tried and withdrawn. |
 
 ### Need inputs a fresh clone lacks (run archives in `out/`, or `prompt_dump.jsonl`)
 
