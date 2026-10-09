@@ -11,6 +11,7 @@ const SUITES = [
   "test_burn_facts.cjs",
   "test_obj_sample.cjs",
   "test_descent_laser_gate.cjs",
+  "test_simulate_clock.cjs",
 ];
 
 const EXPECTED_RED = "test_objective_lock.cjs";

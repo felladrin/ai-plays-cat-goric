@@ -86,9 +86,9 @@ Fixed by the sibling idiom: a function-local `const CFG = require("./physics.cjs
 
 Measured blast radius (offline diff of both builds' prompts over every logged decision of `exp_lag2_s1/s2`, 3 837 decisions): the prompt changes on exactly 9 decisions — L4 6, L6 2, L8 1 — each one the falling-floor note being correctly suppressed where the claimed remedy dies at the real laser state. Every other level is byte-identical. Live: L8 (the only clearing level it can touch) still clears at both seeds; L4 seed 1 cleared where the baseline failed (n=1, directional only). See the 2026-10-08 section of [results.md](results.md).
 
-### `simulate()` is called at the most favourable laser state
+### `simulate()` is called at the most favourable laser state — AUDITED 2026-10-09
 
-`arc.simulate` takes the laser clock as an argument. Passing 0 tests the most favourable state that ever existed and will report a fatal action as safe. In `decision.cjs`, 5 of the 7 call sites pass a constant (0 at lines 686, 947, 949, 1490 and 1 at line 838). Only lines 357 and 873 pass the real `movingFrames`. Whether that matters anywhere is unmeasured.
+`arc.simulate` takes the laser clock as an argument. Passing 0 tests the most favourable state that ever existed and will report a fatal action as safe. Audited in full: [simulate-clock-audit.md](simulate-clock-audit.md) covers all 9 call sites in `decision.cjs` (4 real-clock, 5 constant) with a verdict each. Three constant sites are **LATENT-DEFECTS**: the `ONE-WAY` descent-cost annotation (line 782) and both `walkOffFatalNote` checks (1073, 1075) — the walk-off pair can suppress a warning for a lethal walk (false negative) or promise a jump escape the real laser state denies (false positive). Settling each needs a census of archived states comparing the mf=0 verdict with the real-mf verdict; no behaviour was changed, and `test_simulate_clock.cjs` now pins every site's clock argument against the audit table so a new unmarked call site fails the suite.
 
 ### `countdownWarnFrames: 200` is dead config — FIXED 2026-10-09
 
@@ -98,7 +98,7 @@ Measured blast radius (offline diff of both builds' prompts over every logged de
 
 The move menu has 5 options grounded and 3 airborne, and the softmax runs over the permitted set of the call, so confidence numbers are not comparable across calls.
 
-A related concern from the archive is now handled: a permitted label absent from `top_logprobs` is given a floor of `min(present) − 20` rather than dropped, and `labelsToProbs` counts the occurrences. Labels are single letters and `top_logprobs` is 20, so it should never fire. The counter is never read or reported anywhere, so whether it has ever fired is still unknown.
+A related concern from the archive is now handled: a permitted label absent from `top_logprobs` is given a floor of `min(present) − 20` rather than dropped, and `labelsToProbs` counts the occurrences. Labels are single letters and `top_logprobs` is 20, so it should never fire. Whether it has ever fired is now observable: `run_level.cjs` reports the counter (`missingLabelStats`) in the run JSON and on the console whenever it is non-zero. `run_full.cjs` does not report it yet.
 
 ### Commit SHAs in the archive do not resolve
 
