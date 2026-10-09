@@ -376,6 +376,7 @@ const VIDEO_DIR = CFG.outPath("video");
       // ffprobe. Agreement to a few tens of ms validates every stamp in this file.
     },
     timing: { classifierMs, stepMs, decisions: Object.values(levels).reduce((a, L) => a + L.decisions, 0) },
+    missingLabelStats: (typeof client.getMissingLabelStats === "function") ? client.getMissingLabelStats() : null,
   }), { exitOnSignal: false }); // graceful: signal flushes but does NOT exit, so the loop can break and finalise the video
   // Oscillation-aware stall detector. Catches both same-state repetition AND a
   // 2-cycle (A,B,A,B) where the cat treads water without dying or collecting.
@@ -736,6 +737,10 @@ const VIDEO_DIR = CFG.outPath("video");
   const _dec = Object.values(levels).reduce((a, L) => a + L.decisions, 0) || 1;
   console.log(`timing: classifier ${classifierMs}ms total (${Math.round(classifierMs / _dec)}ms/decision), stepping ${stepMs}ms total (${Math.round(stepMs / Math.max(1, steps))}ms/step over ${steps} steps)`);
   console.log(`page errors: ${pageErrors.length ? pageErrors.join("; ") : "none"}`);
+  const missingLabelStats = (typeof client.getMissingLabelStats === "function") ? client.getMissingLabelStats() : null;
+  if (missingLabelStats && (missingLabelStats.missingCount > 0 || missingLabelStats.missingLabels > 0)) {
+    console.log(`missing label stats: floor applied ${missingLabelStats.missingCount} time(s), ${missingLabelStats.missingLabels} label(s) hit`);
+  }
   console.log("\nPer-level:");
   const keys = Object.keys(levels)
     .map(Number)
