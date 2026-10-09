@@ -434,7 +434,7 @@ Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each 
 | Model | Size | How it was served | Levels cleared at both seeds | Status |
 | --- | --- | --- | --- | --- |
 | [Phocinae/Phocinae-Largha-150M-v1](https://huggingface.co/Phocinae/Phocinae-Largha-150M-v1) | 144M | `phocinae-server` 0.1.5 engine behind `adapters/systemone_adapter.py --backend phocinae`, `TORCHDYNAMO_DISABLE=1` | 0 (1 of 14) | done |
-| [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | | running |
+| [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | 0 (1 of 14) | done |
 | [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | | running |
 | [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | | running |
 | [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | skipped: gated |
@@ -465,3 +465,26 @@ Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
 | 13 | not cleared, 11, 289, 1 | not cleared, 11, 242, 1 |
 
 1 of 14 against Clef's 8 of 14 on the same build. Level 0 clears in 4 decisions, like Clef; everything after it fails, including the seven levels Clef clears. The engine cuts the state to fit a 512-token window: on the level-0 prompts that touched 1 of 126 calls, so the cut is not what separates it from Clef there; on the longer levels it was not measured.
+
+### PurpleMIST-Mini-1.0
+
+Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
+
+| Level | Seed 1 | Seed 2 |
+| --- | --- | --- |
+| 0 | cleared, 1, 63, 3 | cleared, 1, 65, 3 |
+| 1 | not cleared, 7, 112, 1 | not cleared, 7, 121, 1 |
+| 2 | not cleared, 5, 249, 2 | not cleared, 5, 221, 1 |
+| 3 | not cleared, 6, 150, 0 | not cleared, 6, 160, 0 |
+| 4 | not cleared, 8, 369, 0 | not cleared, 9, 348, 0 |
+| 5 | not cleared, 7, 123, 1 | not cleared, 7, 130, 0 |
+| 6 | not cleared, 10, 486, 1 | not cleared, 13, 519, 0 |
+| 7 | not cleared, 12, 154, 1 | not cleared, 13, 147, 1 |
+| 8 | not cleared, 9, 151, 1 | not cleared, 9, 149, 1 |
+| 9 | not cleared, 27, 272, 1 | not cleared, 26, 308, 1 |
+| 10 | not cleared, 5, 242, 3 | cleared, 1, 79, 3 |
+| 11 | not cleared, 7, 125, 1 | not cleared, 7, 106, 1 |
+| 12 | not cleared, 12, 221, 1 | not cleared, 12, 217, 1 |
+| 13 | not cleared, 14, 371, 2 | not cleared, 17, 385, 2 |
+
+1 of 14 at both seeds (level 0). Level 10 cleared at seed 2 only (1 death, 79 decisions), after failing at seed 1 with all 3 gems collected, so it is not counted. Prompts fit its 2048-token window: the server ran with `--no-truncate`, which rejects an oversized prompt, and no run was rejected.
