@@ -2,6 +2,8 @@
 
 Any model that answers the System One request shape (`POST /v1/systemone`) can play the game. The driver has a generic `systemone` endpoint for it, so you don't need to change any code: start your server, set two environment variables, and run the levels.
 
+Before you try a model, check [the list of models already tried](results.md#decision-models-tried-typed-decisions-leaderboard-2026-10-09) in results.md.
+
 ## What your server receives
 
 Each decision is up to two calls (objective, then move). Both are a single `choice` question about a plain-text state:

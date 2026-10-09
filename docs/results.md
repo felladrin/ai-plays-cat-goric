@@ -422,3 +422,44 @@ not in the known-clearing set.
 **Finding:** The `walkOffFatalNote` text says "falls past everything below and dies" even when the real cause is the side laser (not falling past platforms). The note text is not changed here — recorded as a finding per task requirements.
 
 See `docs/simulate-clock-audit.md` for full per-site details and methodology.
+
+## Decision models tried (Typed Decisions leaderboard, 2026-10-09)
+
+The record of every decision model tried through the `systemone` endpoint, so nobody spends a night on one again. The models listed under [Endpoints](#endpoints) (Clef, halogen, Qwen, Laya, the Featherless classifier) are not repeated here. How to run a new one: [bring-your-own-model.md](bring-your-own-model.md).
+
+Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each level in isolation, on the shipped build (`PRUNE_FATAL=1 MOVE_INSTR=2 JUMP_FACTS=1 HOLD_FIX=1 COL_FACTS=1 GEM_FACTS=1 STICKY_OBJECTIVE=1`, `ATTRIB` on), seeds 1 and 2, the same measurement as the Clef table above. Models were served on gpu-server (Radeon 8060S, `gfx1151`) in the sandbox described in the guide. Archives: `out/byom/<model>/s<seed>/` on the machine where they ran.
+
+| Model | Size | How it was served | Levels cleared at both seeds | Status |
+| --- | --- | --- | --- | --- |
+| [Phocinae/Phocinae-Largha-150M-v1](https://huggingface.co/Phocinae/Phocinae-Largha-150M-v1) | 144M | `phocinae-server` 0.1.5 engine behind `adapters/systemone_adapter.py --backend phocinae`, `TORCHDYNAMO_DISABLE=1` | 0 (1 of 14) | done |
+| [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | | running |
+| [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | | running |
+| [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | | running |
+| [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | not tried: gated on Hugging Face |
+| [ProKope-AI/ProKope-421M](https://huggingface.co/ProKope-AI/ProKope-421M) | 421M | | | not tried: gated (manual approval) |
+| [Akiki-AI/Akiki-MiniLM-L6-v2](https://huggingface.co/Akiki-AI/Akiki-MiniLM-L6-v2) | | | | not tried: gated on Hugging Face |
+| [adaptive-classifier/typed-decisions-minilm-l6-specialist](https://huggingface.co/adaptive-classifier/typed-decisions-minilm-l6-specialist) | | | | not tried yet |
+| mlx-community/clef-4bit, clef-flash-4bit | | | | not tried: MLX builds of Clef, which is already measured as `clef` |
+
+### Phocinae-Largha-150M-v1
+
+Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
+
+| Level | Seed 1 | Seed 2 |
+| --- | --- | --- |
+| 0 | cleared, 0, 4, 3 | same |
+| 1 | not cleared, 7, 130, 2 | not cleared, 8, 144, 2 |
+| 2 | not cleared, 13, 504, 0 | not cleared, 13, 503, 0 |
+| 3 | not cleared, 5, 205, 1 | not cleared, 6, 173, 0 |
+| 4 | not cleared, 24, 262, 1 | not cleared, 22, 261, 1 |
+| 5 | not cleared, 8, 121, 1 | not cleared, 8, 158, 2 |
+| 6 | not cleared, 6, 252, 1 | not cleared, 6, 249, 1 |
+| 7 | not cleared, 12, 158, 2 | not cleared, 12, 164, 1 |
+| 8 | not cleared, 15, 251, 1 | not cleared, 11, 194, 1 |
+| 9 | not cleared, 9, 143, 2 | not cleared, 16, 202, 2 |
+| 10 | not cleared, 15, 207, 2 | not cleared, 14, 196, 3 |
+| 11 | not cleared, 7, 126, 1 | not cleared, 7, 135, 1 |
+| 12 | not cleared, 13, 169, 0 | not cleared, 10, 177, 1 |
+| 13 | not cleared, 11, 289, 1 | not cleared, 11, 242, 1 |
+
+1 of 14 against Clef's 8 of 14 on the same build. Level 0 clears in 4 decisions, like Clef; everything after it fails, including the seven levels Clef clears. The engine cuts the state to fit a 512-token window: on the level-0 prompts that touched 1 of 126 calls, so the cut is not what separates it from Clef there; on the longer levels it was not measured.
