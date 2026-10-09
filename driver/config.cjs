@@ -105,6 +105,13 @@ function decisionsApiKey() {
   return process.env.DECISIONS_API_KEY;
 }
 
+// Any self-hosted model that answers POST /v1/systemone. Both are required and
+// have no default, so a run never silently scores against the wrong server.
+function requiredEnv(name, hint) {
+  if (!process.env[name]) throw new Error(`${name} is unset. ${hint}`);
+  return process.env[name];
+}
+
 // --- Output ----------------------------------------------------------------
 // Run artifacts go under out/ in the repo, not /tmp: /tmp collides between
 // concurrent runs and is not writable the same way on every platform.
@@ -129,6 +136,12 @@ module.exports = {
   },
   get DECISIONS_API_KEY() {
     return decisionsApiKey();
+  },
+  get SYSTEMONE_BASE_URL() {
+    return requiredEnv("SYSTEMONE_BASE_URL", "Point it at your decision model server, e.g. http://127.0.0.1:8000.");
+  },
+  get SYSTEMONE_MODEL() {
+    return requiredEnv("SYSTEMONE_MODEL", "Set it to the model id your server expects in the request body.");
   },
   OUT_DIR,
   outPath,

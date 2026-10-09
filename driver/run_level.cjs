@@ -131,13 +131,30 @@ const ENDPOINTS = {
     minIntervalMs: 0,
     decide,
   },
+  // Any self-hosted decision model that speaks System One (POST /v1/systemone).
+  // How to plug one in: docs/bring-your-own-model.md.
+  systemone: {
+    kind: "jev",
+    get baseUrl() {
+      return CFG.SYSTEMONE_BASE_URL;
+    },
+    path: "/v1/systemone",
+    auth: process.env.SYSTEMONE_API_KEY,
+    get model() {
+      return CFG.SYSTEMONE_MODEL;
+    },
+    minIntervalMs: 0,
+    decide,
+  },
   // halogen-flash-server 0.13.8 scores a label from top_logprobs in one forward
   // pass, so this endpoint now runs the SAME policy as every other classifier
   // (decide), not the menu-letter fallback. baseUrl has no /v1: the logprobs
   // client appends it.
   halogen: {
     kind: "halogen-logprobs",
-    baseUrl: CFG.LLAMA_BASE_URL,
+    get baseUrl() {
+      return CFG.LLAMA_BASE_URL;
+    },
     model: "Halogen-Qwen3.8-Flash-Next-Instruct",
     minIntervalMs: 0,
     decide,
@@ -146,21 +163,27 @@ const ENDPOINTS = {
   // comparison against a real classifier interface is the interesting result.
   halogen_menu: {
     kind: "halogen",
-    baseUrl: `${CFG.LLAMA_BASE_URL}/v1`,
+    get baseUrl() {
+      return `${CFG.LLAMA_BASE_URL}/v1`;
+    },
     model: "Halogen-Qwen3.8-Flash-Next-Instruct",
     minIntervalMs: 0,
     decide: halogenDecide,
   },
   qwen_local: {
     kind: "qwen-local",
-    baseUrl: CFG.LLAMA_BASE_URL,
+    get baseUrl() {
+      return CFG.LLAMA_BASE_URL;
+    },
     model: "Qwen3.8-27B-Instruct",
     minIntervalMs: 0,
     decide,
   },
   qwen_small: {
     kind: "qwen-local",
-    baseUrl: CFG.LLAMA_BASE_URL,
+    get baseUrl() {
+      return CFG.LLAMA_BASE_URL;
+    },
     model: "Qwen3.5-0.8B-Instruct",
     minIntervalMs: 0,
     decide,

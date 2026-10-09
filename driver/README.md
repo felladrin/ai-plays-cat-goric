@@ -59,6 +59,7 @@ Other endpoints are kept in the endpoint table because the negative results are 
 - **`halogen`** — halogen-flash-server. Since 0.13.8 it scores a label from `top_logprobs` on the first generated token, so it now runs the same `decide` policy as every other classifier. Point it at the `-Instruct` model id: that one sets `enable_thinking: false`, and with thinking on the first token after the answer prefix is the start of the reasoning rather than a label.
 - **`halogen_menu`** — the same server answered the pre-0.13.8 way, by generating a menu letter and parsing it. Kept because the comparison against a true classifier interface is the interesting result, and it is now an A/B on identical state rather than two different pipelines.
 - **`clef`** — the hosted Decisions model `clef`, `/v1/systemone`. This is the endpoint with the best results: 8 of the 14 playable levels clear at two seeds on the current build (see the Clef section of [`../docs/results.md`](../docs/results.md)). It needs `DECISIONS_BASE_URL` and `DECISIONS_API_KEY`, read in-process from the gitignored env file at the repo root so the key never passes through a shell command or a log. It returns identical probabilities for an identical prompt, which makes it the cleanest endpoint for A/B work: two baseline runs of level 2 were identical.
+- **`systemone`** — any self-hosted model that answers `POST /v1/systemone`, set by `SYSTEMONE_BASE_URL` and `SYSTEMONE_MODEL`. See [`../docs/bring-your-own-model.md`](../docs/bring-your-own-model.md).
 
 ## Running it
 
@@ -121,6 +122,9 @@ Everything machine-specific is in `config.cjs` and overridable by environment va
 | `DEMO_BASE_URL` | the hosted demo | hosted classifier endpoint |
 | `DECISIONS_BASE_URL` | — | required by `clef`. The hosted Decisions service base URL. The driver throws if it is unset rather than failing mid-run |
 | `DECISIONS_API_KEY` | — | required by `clef`. Read from the gitignored env file at the repo root (`*.local`), or export it. The driver throws if it is unset rather than failing mid-run |
+| `SYSTEMONE_BASE_URL` | — | required by `systemone`. Your decision model server, without `/v1` |
+| `SYSTEMONE_MODEL` | — | required by `systemone`. Sent as `model` and stamped in the run file |
+| `SYSTEMONE_API_KEY` | unset | optional bearer token for `systemone` |
 | `HARNESS_URL` | `http://127.0.0.1:5173/harness.html` | where the harness is served |
 | `OUT_DIR` | `../out` | run artifacts |
 | `PLAYWRIGHT_MODULE` | — | path to a global playwright install |

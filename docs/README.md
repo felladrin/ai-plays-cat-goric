@@ -29,6 +29,7 @@ A guide for continuing the project with a coding agent is in [agent-guide.md](ag
 | [dead-ends.md](dead-ends.md) | Ideas measured and rejected. Do not re-run these. |
 | [open-problems.md](open-problems.md) | The live blocker, plus defects found and left in place. |
 | [method.md](method.md) | How to measure here without wasting a night, and the environment traps. |
+| [bring-your-own-model.md](bring-your-own-model.md) | How to run the game against your own decision model: the request shape, the sweep script, the adapter, and a sandbox recipe. |
 | [agent-guide.md](agent-guide.md) | Contract and reading order for a fresh agent session: the task, the measurement rules, what is measured dead, and a paste-ready prompt. |
 
 Operating instructions (setup, commands, configuration, endpoints) stay in [`../driver/README.md`](../driver/README.md).

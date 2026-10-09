@@ -8,6 +8,7 @@ Reverted out of `driver/decision.cjs` because it regressed L1 and L2. See
 | `decision.descent-experiment.cjs` | all four changes; drop-in replacement for `decision.cjs` |
 | `test_descent_criteria.reverted.cjs` | its test; passes against the experiment, fails against `decision.cjs` |
 | `lvl.sh` | run one level, print a one-line summary |
+| `sweep_systemone.sh` | run every level in isolation against a System One server (`systemone` endpoint), one summary line per level; see `docs/bring-your-own-model.md` |
 
 Two known defects, both described in the handoff: the direction filter's
 `ahead()` test misfires when the landing platform straddles the step-off edge
