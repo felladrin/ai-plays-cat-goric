@@ -27,3 +27,45 @@ jobs:
       - name: Run test suite
         working-directory: driver
         run: npm test
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install driver deps
+        working-directory: driver
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: driver
+        run: npx playwright install --with-deps chromium
+
+      - name: Start harness
+        run: |
+          npm run harness > harness.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:5173/harness.html 2>/dev/null || echo 000)
+            [ "$code" = "200" ] && exit 0
+            sleep 1
+          done
+          cat harness.log
+          exit 1
+
+      - name: Run verify_layout
+        working-directory: driver
+        run: node verify_layout.cjs
+
+      - name: Run overlay_test
+        working-directory: driver
+        run: node overlay_test.cjs
