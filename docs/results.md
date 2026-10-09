@@ -427,6 +427,8 @@ See `docs/simulate-clock-audit.md` for full per-site details and methodology.
 
 The record of every decision model tried through the `systemone` endpoint, so nobody spends a night on one again. The models listed under [Endpoints](#endpoints) (Clef, halogen, Qwen, Laya, the Featherless classifier) are not repeated here. How to run a new one: [bring-your-own-model.md](bring-your-own-model.md).
 
+Gated models are skipped, whether the gate approves automatically or by hand: the project only uses models anyone can download.
+
 Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each level in isolation, on the shipped build (`PRUNE_FATAL=1 MOVE_INSTR=2 JUMP_FACTS=1 HOLD_FIX=1 COL_FACTS=1 GEM_FACTS=1 STICKY_OBJECTIVE=1`, `ATTRIB` on), seeds 1 and 2, the same measurement as the Clef table above. Models were served on gpu-server (Radeon 8060S, `gfx1151`) in the sandbox described in the guide. Archives: `out/byom/<model>/s<seed>/` on the machine where they ran.
 
 | Model | Size | How it was served | Levels cleared at both seeds | Status |
@@ -435,9 +437,9 @@ Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each 
 | [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | | running |
 | [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | | running |
 | [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | | running |
-| [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | not tried: gated on Hugging Face |
-| [ProKope-AI/ProKope-421M](https://huggingface.co/ProKope-AI/ProKope-421M) | 421M | | | not tried: gated (manual approval) |
-| [Akiki-AI/Akiki-MiniLM-L6-v2](https://huggingface.co/Akiki-AI/Akiki-MiniLM-L6-v2) | | | | not tried: gated on Hugging Face |
+| [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | skipped: gated |
+| [ProKope-AI/ProKope-421M](https://huggingface.co/ProKope-AI/ProKope-421M) | 421M | | | skipped: gated |
+| [Akiki-AI/Akiki-MiniLM-L6-v2](https://huggingface.co/Akiki-AI/Akiki-MiniLM-L6-v2) | | | | skipped: gated |
 | [adaptive-classifier/typed-decisions-minilm-l6-specialist](https://huggingface.co/adaptive-classifier/typed-decisions-minilm-l6-specialist) | | | | not tried yet |
 | mlx-community/clef-4bit, clef-flash-4bit | | | | not tried: MLX builds of Clef, which is already measured as `clef` |
 
