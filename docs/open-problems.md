@@ -98,7 +98,7 @@ Measured blast radius (offline diff of both builds' prompts over every logged de
 
 The move menu has 5 options grounded and 3 airborne, and the softmax runs over the permitted set of the call, so confidence numbers are not comparable across calls.
 
-A related concern from the archive is now handled: a permitted label absent from `top_logprobs` is given a floor of `min(present) − 20` rather than dropped, and `labelsToProbs` counts the occurrences. Labels are single letters and `top_logprobs` is 20, so it should never fire. Whether it has ever fired is now observable: `run_level.cjs` reports the counter (`missingLabelStats`) in the run JSON and on the console whenever it is non-zero. `run_full.cjs` does not report it yet.
+A related concern from the archive is now handled: a permitted label absent from `top_logprobs` is given a floor of `min(present) − 20` rather than dropped, and `labelsToProbs` counts the occurrences. Labels are single letters and `top_logprobs` is 20, so it should never fire. Whether it has ever fired is now observable: both runners report the counter (`missingLabelStats`) in the run JSON and on the console whenever it is non-zero.
 
 ### Commit SHAs in the archive do not resolve
 
