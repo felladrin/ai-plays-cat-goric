@@ -278,7 +278,8 @@ const GEMS2 = [[180, 188], [110, 240], [240, 240]];
 const SNAP = {
   level: 2, cat: { x: 180, y: 64, dy: 0, height: 20 }, onPlatform: true,
   // tl.y=30 puts the top laser close enough that the countdown is 70 frames
-  // (< countdownWarnFrames=90), so the gated countdown line actually renders.
+  // (< needed frames to reach gem_a at walking speed), so the affordability-
+  // gated countdown line actually renders.
   drones: { bl: { x: 1, y: 310 }, tr: { x: 359, y: 1 }, tl: { x: 1, y: 30 }, br: { x: 359, y: 310 } },
   gemsCollected: 0, aliveGems: 3,
   gemPositions: [{ x: 180, y: 188 }, { x: 110, y: 240 }, { x: 240, y: 240 }],
@@ -634,17 +635,21 @@ let __pending = Promise.resolve();
 // was aborted at 10 decisions, when escalation needs ~8 to start sampling.
 __pending = __pending.then(async () => {
   const fs = require("fs"), path = require("path");
-  const src = fs.readFileSync(path.join(__dirname, "run_level.cjs"), "utf8");
-  const m = src.match(/const STALL_WINDOW = (\d+);/);
-  assert(m, "run_level.cjs must define STALL_WINDOW");
-  const win = Number(m[1]);
-  // Two positions alternating: a given key is hit every other decision, so it needs
-  // 2*(threshold+1) decisions before escalation starts. The abort must come later.
+  // Both runners now import STALL_WINDOW from the shared stall_window.cjs module.
+  // Verify the shared value satisfies the inequality, and that both runners import it.
+  const shared = require("./stall_window.cjs");
+  const win = shared.STALL_WINDOW;
   const needed = 2 * (d.VISIT_STUCK_THRESHOLD + 1);
-  assert(win > needed,
-    `STALL_WINDOW (${win}) must exceed the ${needed} decisions a two-position ` +
+  assert(Number.isInteger(win) && win > needed,
+    `Shared STALL_WINDOW (${win}) must exceed the ${needed} decisions a two-position ` +
     `oscillation needs before escalation fires, or the abort always wins`);
-  console.log(`OK: stall abort (${win}) is patient enough for escalation (${needed})`);
+  // Verify both runners import from the shared module.
+  for (const f of ["run_level.cjs", "run_full.cjs"]) {
+    const src = fs.readFileSync(path.join(__dirname, f), "utf8");
+    assert(/require\("\.\/stall_window\.cjs"\)/.test(src),
+      `${f} must import STALL_WINDOW from stall_window.cjs`);
+  }
+  console.log(`OK: shared stall abort (${win}) is patient enough for escalation (${needed}); both runners import it`);
 });
 
 // Hop points: reachable neighbouring platforms, for when the route on is not the
