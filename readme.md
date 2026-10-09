@@ -59,7 +59,7 @@ The driver speaks two model interfaces, and every endpoint is one of them:
 ## Checks
 
 ```sh
-npm test                            # runs the driver's assertion suite
+npm test                            # the whole driver suite (one suite is red by design and pinned)
 ```
 
 ## Results, and the wrong turns

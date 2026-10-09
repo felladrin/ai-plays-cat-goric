@@ -62,22 +62,13 @@ These were verified in the current tree. Two were fixed on 2026-10-08 and are ma
 
 **Method trap found while measuring this.** An offline prompt-diff between two builds of `decision.cjs` must be **order-insensitive**. The objective menu is shuffled with the module-level seeded RNG (`shuffleArray(entries, RNG)`), and the two module instances hold independent streams that stay in sync only while every call consumes the same number of draws. Any change that alters the menu ENTRY COUNT (this gate) desynchronizes the streams, and every later decision differs in list order - a naive string diff reported 14-53 false diffs on five clearing levels before the canon comparison (sorted criteria map + sorted state lines) showed the truth: zero. The CFG-fix diff survived this only because that fix changed note text, never entry counts.
 
-### `STALL_WINDOW` differs between the two runners, and only one is guarded
+### `STALL_WINDOW` differs between the two runners, and only one is guarded — FIXED 2026-10-09
 
-`run_level.cjs` uses 24 and `run_full.cjs` uses 10. The 10 was measured as losing the race with the revisit escalation: a two-position oscillation hits a given 10px key every other decision, so escalation needs about 8 decisions to start sampling and the abort fires first. `test_death_history.cjs` asserts `STALL_WINDOW > 2 * (VISIT_STUCK_THRESHOLD + 1)`, but it reads the value out of `run_level.cjs` only, so the ladder runner's 10 passes unchecked. This is another instance of the builder-lag class described in [method.md](method.md).
+`run_level.cjs` used 24 and `run_full.cjs` used 10. The 10 was measured as losing the race with the revisit escalation: a two-position oscillation hits a given 10px key every other decision, so escalation needs about 8 decisions to start sampling and the abort fires first. `test_death_history.cjs` asserted `STALL_WINDOW > 2 * (VISIT_STUCK_THRESHOLD + 1)`, but read the value out of `run_level.cjs` only, so the ladder runner's 10 passed unchecked. Fixed: both runners import one shared `stall_window.cjs` (24), and the guard asserts the shared value and that both runners import it. **Consequence:** ladder stall timing changed by design; pre-2026-10-09 ladder archives are not comparable on stall behaviour and the ladder deserves a live re-measurement.
 
-### `npm test` does not run every test
+### `npm test` does not run every test — FIXED 2026-10-09
 
-`npm test` runs `test_death_history.cjs` only (23 checks, green). Three other suites exist:
-
-| Suite | Exit code | Note |
-| --- | --- | --- |
-| `test_death_history.cjs` | 0 | the one `npm test` runs |
-| `test_descent_gate.cjs` | 0 | |
-| `test_sticky_objective.cjs` | 0 | |
-| `test_objective_lock.cjs` | **1** | red by design: it asserts the jump-landing note fires on level 4 only, and the same-floor variant fires on level 1 too. It is the gate on re-enabling that note (see [dead-ends.md](dead-ends.md)). |
-
-"`npm test` green" therefore does not mean all tests are green.
+`npm test` used to run `test_death_history.cjs` only, while the other suites existed beside it — "`npm test` green" did not mean all tests were green. Fixed: `npm test` now runs `test_all.cjs`, which runs all eight suites and pins `test_objective_lock.cjs`'s red-by-design status (it asserts the jump-landing note fires on level 4 only, and the same-floor variant fires on level 1; it is the gate on re-enabling that note, see [dead-ends.md](dead-ends.md)) to its exact failure line — the runner fails if that suite goes green or goes red for any other reason. A CI workflow (`.github/workflows/ci.yml`) runs the same suite on push and PR.
 
 ### An unwinnable reset records nothing — FIXED 2026-10-08
 
@@ -99,9 +90,9 @@ Measured blast radius (offline diff of both builds' prompts over every logged de
 
 `arc.simulate` takes the laser clock as an argument. Passing 0 tests the most favourable state that ever existed and will report a fatal action as safe. In `decision.cjs`, 5 of the 7 call sites pass a constant (0 at lines 686, 947, 949, 1490 and 1 at line 838). Only lines 357 and 873 pass the real `movingFrames`. Whether that matters anywhere is unmeasured.
 
-### `countdownWarnFrames: 200` is dead config
+### `countdownWarnFrames: 200` is dead config — FIXED 2026-10-09
 
-`physics.cjs` carries it with a long comment justifying the threshold, and nothing in the driver reads it. A stale comment in `test_death_history.cjs` still calls it 90. The countdown fires on the affordability rule instead. This is a half-finished change from an earlier session.
+`physics.cjs` carried it with a long comment justifying the threshold, and nothing in the driver read it. A stale comment in `test_death_history.cjs` still called it 90. The countdown fires on the affordability rule instead. Removed, with the stale comment corrected.
 
 ### Probabilities are normalised over a set whose size changes
 

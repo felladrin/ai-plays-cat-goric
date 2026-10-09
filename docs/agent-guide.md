@@ -54,11 +54,10 @@ means an edit made mid-sweep cannot leak into the runs that are measuring it.
 - A new prompt fact must be regression-tested on the levels that already clear. Every
   harmful fact in [dead-ends.md](dead-ends.md) was caught only there, never by a level
   failing outright.
-- Run the full suite, not just `npm test`: `test_descent_gate.cjs`,
-  `test_sticky_objective.cjs`, `test_cfg_shadow.cjs`, `test_burn_facts.cjs`,
-  `test_obj_sample.cjs`, and `test_descent_laser_gate.cjs` exist, and
-  `test_objective_lock.cjs` is red **by design** as the gate on re-enabling the
-  same-floor note.
+- `npm test` runs the full suite (`test_all.cjs`): the seven green suites plus
+  `test_objective_lock.cjs`, which is red **by design** as the gate on
+  re-enabling the same-floor note — the runner expects that exact failure and
+  fails if it goes red or green for any other reason.
 - Update [results.md](results.md) in the same change as any result you cite, with the
   command and the numbers.
 

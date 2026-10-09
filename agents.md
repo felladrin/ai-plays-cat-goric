@@ -19,17 +19,7 @@ node run_full.cjs clef                 # the whole ladder
 npm test                               # the driver's default suite
 ```
 
-`npm test` runs one file. The full suite is `npm test` plus, one by one:
-
-```sh
-node test_descent_gate.cjs
-node test_sticky_objective.cjs
-node test_cfg_shadow.cjs
-node test_burn_facts.cjs
-node test_obj_sample.cjs
-node test_descent_laser_gate.cjs
-node test_objective_lock.cjs           # red by design: it gates re-enabling the same-floor note
-```
+`npm test` runs the whole suite: `test_all.cjs` runs every suite in one command and exits non-zero on anything unexpected. The suites are `test_death_history.cjs`, `test_descent_gate.cjs`, `test_sticky_objective.cjs`, `test_cfg_shadow.cjs`, `test_burn_facts.cjs`, `test_obj_sample.cjs`, `test_descent_laser_gate.cjs`, and `test_objective_lock.cjs` — the last is red by design (it gates re-enabling the same-floor note) and `test_all.cjs` pins that exact expectation.
 
 ## Structure
 
