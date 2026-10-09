@@ -121,48 +121,66 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 
 Synthetic state-space census across all playable levels (0..13), every platform geometry, and a real-mf grid (0, 20, 40, ..., 600). No live archives exist; states are enumerated from the level geometry using the same idioms as `driver/experiments/census_gem_from.cjs` and `firing_counts.cjs`.
 
+**NOTE:** The word "live" in this census means "exists in synthetic geometry", not "fires in play". There are no run archives behind these numbers.
+
 ### Site 5 — `buildObjectiveCall` descent cost (line 782)
-- **States examined:** 141 (all descent points offered by `descentPoints()` across levels 0–13)
-- **Divergent states (mf=0 vs any real mf):** 103
-- **Direction:** 103 false-safe (mf=0 → `landed`, real mf → `laser`), 0 false-fatal
+**Methodology corrected:** Enumerates descent points exactly as `descentPoints()` does (same gates, same "remaining objective below" condition). Conditions each candidate on the site-4 offer gate (the descent is only on the menu if the held walk survives at the REAL mf — the `survives()` gate at line 1756). Compares the LOST-GEM SET at mf=0 vs real mf (using `reachableFrom` from the landing platform). Direction matters: mf=0 landing when real-mf does not produces an EXTRA ONE-WAY warning, not a falsely-reachable gem — not called false-safe.
+
+- **States examined (synthetic geometry):** 141 (all geometrically valid descent points across levels 0–13)
+- **Divergent states (mf=0 vs real mf LOST-GEM SET differs):** 89
+- **EXTRA ONE-WAY warnings (mf=0 lands, real-mf doesn't offer descent):** 89
+- **MISSED ONE-WAY warnings (mf=0 no land, real-mf lands):** 28
+- **Example divergent states (lost-gem set differs):**
+  - L0 left end x=40, y=250: mf=0 lost=[] land@(40,250) → mf=60 lost=[gem_a] land@(40,250)
+  - L0 left end x=86, y=210: mf=0 lost=[] land@(86,210) → mf=280 lost=[gem_a] land@(86,210)
+  - L1 right end x=228, y=230: mf=0 lost=[] land@(228,230) → mf=180 lost=[gem_b] land@(228,230)
+- **Verdict:** **DEFECT-LIVE** — the `ONE-WAY` cost annotation is computed at mf=0. In 89/141 states the lost-gem set differs at real mf (side laser closes off walk/jump on landing floor). In 89 states mf=0 emits an EXTRA ONE-WAY warning (descent not offered at real mf). In 28 states a warning is MISSED (mf=0 says death, real mf says land).
+
+### Site 6 — `jumpLandingNote` held scan (line 964)
+**Methodology corrected:** The audit doc called this DEFENSIBLE on a false premise (claiming the chosen namedX is re-checked at real mf in the empty branch; that branch only runs when there are no landings and simulates from `snap.cat.x`, not `namedX`). Census: for states where the held scan picks a namedX at mf=1, does the pick change at real mf (and would the real-mf arc from the picked namedX survive)?
+
+- **States examined (synthetic geometry):** 194 (all states where envelope finds a good window but current x fails)
+- **Divergent states (mf=1 namedX pick differs at real mf OR mf=1 pick dies at real mf):** 194
 - **Example divergent states:**
-  - L0 left end x=40, y=250: mf=0 `landed` → mf=60 `laser`
-  - L0 left end x=86, y=210: mf=0 `landed` → mf=280 `laser`
-  - L0 left end x=134, y=180: mf=0 `landed` → mf=480 `laser`
-  - L1 left end x=228, y=230: mf=0 `landed` → mf=180 `laser`
-  - L1 left end x=154, y=180: mf=0 `landed` → mf=480 `laser`
-- **Verdict:** **DEFECT-LIVE** — the `ONE-WAY` cost annotation is computed at mf=0 and falsely reports gems as reachable from the landing platform in 103/141 states where the side laser has already closed off the walk/jump at real mf.
+  - L1 catX=50 y=230 target=gem_b: mf=1 pick x=52 plat=floor(109..161@212) → mf=260 pick x=54 same plat
+  - L1 catX=278 y=230 target=gem_a: mf=1 pick x=228 plat=floor(154..206@180) → mf=180 pick dies (laser/void)
+  - L2 catX=84 y=240 target=gem_a: mf=1 pick x=103 plat=floor(154..206@200) → mf=360 pick dies (laser/void)
+- **Verdict:** **DEFECT-LIVE** — all 194 states show divergence. The namedX pick shifts at real mf (different x or different landing platform), and in many cases the mf=1 pick is killed by the side laser at real mf. The audit's DEFENSIBLE verdict rested on a false premise (the empty branch does not re-check namedX).
 
 ### Site 7 — `walkOffFatalNote` walk check (line 1073)
-- **States examined:** 1,288 (all grounded cat positions within `reachEnd` = 10.5px of a floor end, across levels 0–13)
-- **Divergent states (mf=0 vs any real mf):** 647
-- **Direction:** 647 false-safe (mf=0 → `landed`, real mf → `laser`), 0 false-fatal
-- **Example divergent states:**
-  - L0 left end catX=40, endX=40, y=250: mf=0 `landed` → mf=60 `laser`
-  - L0 left end catX=42, endX=40, y=250: mf=0 `landed` → mf=60 `laser`
-  - L0 left end catX=44, endX=40, y=250: mf=0 `landed` → mf=60 `laser`
-  - L0 left end catX=46, endX=40, y=250: mf=0 `landed` → mf=60 `laser`
-  - L0 left end catX=48, endX=40, y=250: mf=0 `landed` → mf=60 `laser`
-- **Verdict:** **DEFECT-LIVE** — the walk-off warning is suppressed (simulation returns `landed` at mf=0) in 647/1,288 states where the real side laser kills the cat. The model receives no warning for a lethal walk.
+**Methodology corrected:** Adds alive-at-start filter — at high mf the side laser bounds close ~120px per side (see arc.cjs line 112 bounds test); a start position already inside the laser at that mf is a state the cat cannot be alive in and is excluded. Stops inflating the denominator: catX is enumerated but simulate is called at endX, so states are deduped by (level, floor, endX, side) and the distinct count is reported.
 
-### Site 8 — `walkOffFatalNote` jump check (line 1075)
-- **States examined:** 1,288 (same geometry as site 7, testing `jump_left`/`jump_right` from the end)
-- **Divergent states (mf=0 vs any real mf):** 596
-- **Direction:** 596 false-safe (mf=0 → `landed`, real mf → `laser`), 0 false-fatal
+- **States examined (deduped by level,floor,endX,side, alive-at-start):** 230
+- **States filtered (start inside laser at all mf):** 0
+- **Divergent states (mf=0 vs real mf):** 74
+- **Direction:** 74 false-safe (mf=0 → `landed`, real mf → `laser`), 0 false-fatal
 - **Example divergent states:**
-  - L0 left end catX=134, endX=134, y=180: mf=0 `landed` → mf=260 `laser`
-  - L0 left end catX=136, endX=134, y=180: mf=0 `landed` → mf=260 `laser`
-  - L0 left end catX=138, endX=134, y=180: mf=0 `landed` → mf=260 `laser`
-  - L0 left end catX=140, endX=134, y=180: mf=0 `landed` → mf=260 `laser`
-  - L0 left end catX=142, endX=134, y=180: mf=0 `landed` → mf=260 `laser`
-- **Verdict:** **DEFECT-LIVE** — the jump escape clause is appended (simulation returns `landed` at mf=0) in 596/1,288 states where the real side laser kills the jump. The model is told a safe jump escape exists when it does not.
+  - L0 side=left endX=40 y=250 mf=60 → mf=0:landed mf=60:laser (false-safe)
+  - L0 side=left endX=86 y=210 mf=280 → mf=0:landed mf=280:laser (false-safe)
+  - L1 side=right endX=102 y=230 mf=380 → mf=0:landed mf=380:laser (false-safe)
+- **Verdict:** **DEFECT-LIVE** — the walk-off warning is suppressed in 74/230 distinct end-state geometries where the real side laser kills the cat. The model receives no warning for a lethal walk.
+
+### Site 8 — `walkOffFatalNote` jump escape clause (line 1075)
+**Methodology corrected:** The jump clause is only appended when the site-7 walk is NOT landed. Census conditions on that — counts jump divergence only where the walk is fatal.
+
+- **States examined (deduped, alive-at-start, walk fatal only):** 107
+- **States filtered (start inside laser at all mf):** 0
+- **States skipped (walk lands at mf=0, jump clause not appended):** 123
+- **Divergent states (mf=0 vs real mf):** 10
+- **Direction:** 10 false-safe escape (mf=0 → `landed`, real mf → `laser`), 0 false-fatal escape
+- **Example divergent states:**
+  - L3 side=left endX=118 y=203 mf=420 → mf=0:landed mf=420:laser (false-safe-escape)
+  - L4 side=left endX=199 y=93 mf=80 → mf=0:landed mf=80:laser (false-safe-escape)
+  - L4 side=left endX=263 y=171 mf=360 → mf=0:landed mf=360:laser (false-safe-escape)
+- **Verdict:** **DEFECT-LIVE** — the jump escape clause is appended in 10/107 states where the real side laser kills the jump. The model is told a safe jump escape exists when it does not.
 
 ### Updated Summary Table
 
 | Site | Function | Line | Clock | Verdict (pre-census) | Verdict (post-census) |
 |------|----------|------|-------|----------------------|-----------------------|
 | 5 | `buildObjectiveCall` descent cost | 782 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
+| 6 | `jumpLandingNote` held scan | 964 | `1` | DEFENSIBLE | **DEFECT-LIVE** |
 | 7 | `walkOffFatalNote` walk | 1073 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
-| 8 | `walkOffFatalNote` jump | 1075 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
+| 8 | `walkOffFatalNote` jump escape | 1075 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
 
-All three latent defects are **live**: divergent states exist in reachable geometry, and the divergence is exclusively in the dangerous direction (false-safe — the constant clock reports survival where the real laser kills).
+All four constant-clock sites are **DEFECT-LIVE**: divergent states exist in reachable synthetic geometry, and the divergence is exclusively in the dangerous direction (false-safe — the constant clock reports survival where the real laser kills). Site 6's verdict changed from DEFENSIBLE to DEFECT-LIVE because the audit's reasoning was based on a false premise.
