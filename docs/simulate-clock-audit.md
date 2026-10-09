@@ -172,6 +172,8 @@ Synthetic state-space census across all playable levels (0..13), every platform 
   - L4 side=left endX=263 y=171 mf=360 → mf=0:landed mf=360:laser (false-safe-escape)
 - **Verdict:** **DEFECT-LIVE** — the jump escape clause is appended in 10/107 states where the real side laser kills the jump. The model is told a safe jump escape exists when it does not.
 
+**Methodology re-verified against the real code (2026-10-09, second pass).** `walkOffFatalNote` fires only when the cat is on a platform, within `reachEnd` of the floor end in the direction of the chosen objective (imminence gate), and the mf=0 walk from that end is fatal; it then evaluates the jump from the same end. Those gates decide *when* the two `simulate()` calls happen in play, but both calls take exactly `(level, endX, run.y, 0, catHeight, dir, mf, {grounded:true})` — the clock is the only varying input. The census enumerates and dedupes by precisely that input space, `(level, floor, endX, side)`, both sides for every floor, so coverage is complete and the denominators are the distinct simulation inputs, not the (larger) set of firing cat-positions. Site 8's conditioning on walk-fatal-at-mf=0 matches the real gate (the jump clause is only appended when the walk is not landed). No methodology change needed; the counts stand. `test_census_pins.cjs` now pins these outputs.
+
 ### Updated Summary Table
 
 | Site | Function | Line | Clock | Verdict (pre-census) | Verdict (post-census) |
