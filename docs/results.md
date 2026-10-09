@@ -399,3 +399,26 @@ This is the first time levels 5, 7, 8, 9, 10 cleared inside a ladder context;
 previously the ladder baseline died at level 3 and those clears were isolated
 measurements only. Level 4 is excluded: it clears at one of two seeds, so it is
 not in the known-clearing set.
+
+## Simulate-clock census (2026-10-09)
+
+**Command:** `node driver/experiments/census_simulate_clock.cjs`
+
+**Census scope:** Synthetic state-space enumeration across all playable levels (0..13), real-mf grid (0, 20, 40, ..., 600). "Live" means "exists in synthetic geometry", not "fires in play" — no run archives used.
+
+| Site | Function | Line | Clock | States examined | Divergent | Verdict |
+|------|----------|------|-------|-----------------|-----------|---------|
+| 5 | `buildObjectiveCall` descent cost (ONE-WAY) | 782 | `0` | 141 | 89 (lost-gem set) + 89 extra ONE-WAY + 28 missed | **DEFECT-LIVE** |
+| 6 | `jumpLandingNote` held scan (namedX pick) | 964 | `1` | 194 | 194 (pick shift or mf=1 pick dies) | **DEFECT-LIVE** |
+| 7 | `walkOffFatalNote` walk check | 1073 | `0` | 230 (deduped) | 74 false-safe | **DEFECT-LIVE** |
+| 8 | `walkOffFatalNote` jump escape | 1075 | `0` | 107 (walk fatal only) | 10 false-safe escape | **DEFECT-LIVE** |
+
+**Key methodology corrections vs. prior census:**
+- Site 5: Enumerates descent points per `descentPoints()` gates; conditions on site-4 offer gate (survives at real mf); compares LOST-GEM SET at mf=0 vs real mf; distinguishes EXTRA vs MISSED ONE-WAY warnings.
+- Site 6: Census the held-scan pick (namedX) at mf=1 vs real mf; the prior DEFENSIBLE verdict rested on a false premise (empty branch simulates from `snap.cat.x`, not `namedX`).
+- Site 7: Alive-at-start filter (excludes positions inside laser at tested mf); dedupes by (level, floor, endX, side) since simulate is called at endX.
+- Site 8: Conditions on site-7 walk being fatal (jump clause only appended when walk doesn't land).
+
+**Finding:** The `walkOffFatalNote` text says "falls past everything below and dies" even when the real cause is the side laser (not falling past platforms). The note text is not changed here — recorded as a finding per task requirements.
+
+See `docs/simulate-clock-audit.md` for full per-site details and methodology.
