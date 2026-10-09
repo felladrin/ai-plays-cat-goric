@@ -1,0 +1,15 @@
+{
+  "name": "cat-goric-llm-driver",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Drives Cat Goric with a classifier LLM policy. Kept separate from the game's package.json so the 13kB entry gains no dependencies.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test_death_history.cjs",
+    "level": "node run_level.cjs",
+    "full": "node run_full.cjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules
+.DS_Store
+dist
+dist.zip
+*.local
+todo.txt
+.idea
+.vscode
+
+# Driver run artifacts (decision logs, screenshots, video)
+out/
+driver/node_modules/
+
+.pi/
+opencode.json
