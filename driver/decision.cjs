@@ -961,7 +961,7 @@ function jumpLandingNote(snap, target) {
   let heldX = null, heldPlat = null;
   for (const x of good) {
     for (const dir of ["jump_left", "jump", "jump_right"]) {
-      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 1 (DEFENSIBLE)
+      const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 1 (DEFECT-LIVE)
       if (r.outcome !== "landed") continue;
       const rKey = REACH.platformKeyUnder(snap.level, r.x, r.y);
       if (rKey && rKey !== here && keeps(rKey)) {

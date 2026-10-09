@@ -408,14 +408,14 @@ not in the known-clearing set.
 
 | Site | Function | Line | Clock | States examined | Divergent | Verdict |
 |------|----------|------|-------|-----------------|-----------|---------|
-| 5 | `buildObjectiveCall` descent cost (ONE-WAY) | 782 | `0` | 141 | 89 (lost-gem set) + 89 extra ONE-WAY + 28 missed | **DEFECT-LIVE** |
-| 6 | `jumpLandingNote` held scan (namedX pick) | 964 | `1` | 194 | 194 (pick shift or mf=1 pick dies) | **DEFECT-LIVE** |
+| 5 | `buildObjectiveCall` descent cost (ONE-WAY) | 782 | `0` | 97 (offered at real mf) | 0 (lost-gem set) | **DEFECT-THEORETICAL** |
+| 6 | `jumpLandingNote` held scan (namedX pick) | 964 | `1` | 194 | 194 (pick dies at real mf; 0 pick shifts) | **DEFECT-LIVE** |
 | 7 | `walkOffFatalNote` walk check | 1073 | `0` | 230 (deduped) | 74 false-safe | **DEFECT-LIVE** |
 | 8 | `walkOffFatalNote` jump escape | 1075 | `0` | 107 (walk fatal only) | 10 false-safe escape | **DEFECT-LIVE** |
 
 **Key methodology corrections vs. prior census:**
-- Site 5: Enumerates descent points per `descentPoints()` gates; conditions on site-4 offer gate (survives at real mf); compares LOST-GEM SET at mf=0 vs real mf; distinguishes EXTRA vs MISSED ONE-WAY warnings.
-- Site 6: Census the held-scan pick (namedX) at mf=1 vs real mf; the prior DEFENSIBLE verdict rested on a false premise (empty branch simulates from `snap.cat.x`, not `namedX`).
+- Site 5: Enumerates descent points per `descentPoints()` gates (remaining objective below, not any platform below); conditions on site-4 offer gate (survives at real mf); EXCLUDES states where descent is never offered at any real mf (no ONE-WAY note emitted); removes "none" fallback artifact for MISSED warnings. Compares LOST-GEM SET at mf=0 vs real mf ONLY for states offered at real mf.
+- Site 6: Pick rule matches real code — chooses good x NEAREST THE CAT whose held arc lands on a keeping floor (not first/leftmost); survival check simulates the JUMP action (heldDir) from picked x, not a walk; added alive-at-start filter like sites 7/8.
 - Site 7: Alive-at-start filter (excludes positions inside laser at tested mf); dedupes by (level, floor, endX, side) since simulate is called at endX.
 - Site 8: Conditions on site-7 walk being fatal (jump clause only appended when walk doesn't land).
 

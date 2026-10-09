@@ -47,7 +47,7 @@ Sweep L0-L9 before believing anything.
 | `diag_gate_blast_radius.cjs` | blast radius of the hop_points.cjs:116 one-character change (y231→y211 landing gate) |
 | `diag_hop_scan.cjs` | which filter in hopPoints rejects the y231→y211 landing, by first-reject tally |
 | `landings_hash.cjs` | SHA-256 of all `landingsFrom` + `graph` outputs (null control for additive reachability changes) |
-| `census_simulate_clock.cjs` | census of three constant-clock `simulate()` sites vs real-mf grid (sites 5,7,8 from simulate-clock-audit.md) |
+| `census_simulate_clock.cjs` | census of four constant-clock `simulate()` sites vs real-mf grid (sites 5,6,7,8 from simulate-clock-audit.md) |
 | `firstpick_sweep.cjs` | blast-radius sweep: which states have a DEAD first-pick across all levels/floors/x/mf |
 | `route_clock.cjs` | offline route-vs-clock analyzer; run with `--state` or level args for per-ordering feasibility |
 

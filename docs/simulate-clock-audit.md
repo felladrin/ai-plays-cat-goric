@@ -108,12 +108,12 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 | 3 | `jumpLandingNote` empty | 999 | real `mf` | DEFENSIBLE |
 | 4 | `descentPoints` gate | 1756 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 782 | `0` | **LATENT-DEFECT** |
-| 6 | `jumpLandingNote` held scan | 964 | `1` | DEFENSIBLE |
+| 6 | `jumpLandingNote` held scan | 964 | `1` | **DEFECT-LIVE** |
 | 7 | `walkOffFatalNote` walk | 1073 | `0` | **LATENT-DEFECT** |
 | 8 | `walkOffFatalNote` jump | 1075 | `0` | **LATENT-DEFECT** |
 | 9 | `descentPoints` LANDDESC_HELD | 1792 | `0` | DEFENSIBLE-guarded |
 
-**Latent defects: 3** (sites 5, 7, 8). Sites 6 and 9 are constant-clock but judged defensible for the reasons above.
+**Latent defects: 3** (sites 5, 7, 8). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
 ---
 
@@ -124,28 +124,26 @@ Synthetic state-space census across all playable levels (0..13), every platform 
 **NOTE:** The word "live" in this census means "exists in synthetic geometry", not "fires in play". There are no run archives behind these numbers.
 
 ### Site 5 — `buildObjectiveCall` descent cost (line 782)
-**Methodology corrected:** Enumerates descent points exactly as `descentPoints()` does (same gates, same "remaining objective below" condition). Conditions each candidate on the site-4 offer gate (the descent is only on the menu if the held walk survives at the REAL mf — the `survives()` gate at line 1756). Compares the LOST-GEM SET at mf=0 vs real mf (using `reachableFrom` from the landing platform). Direction matters: mf=0 landing when real-mf does not produces an EXTRA ONE-WAY warning, not a falsely-reachable gem — not called false-safe.
+**Methodology corrected:** Enumerates descent points exactly as `descentPoints()` does (same gates, same "remaining objective below" condition). Conditions each candidate on the site-4 offer gate (the descent is only on the menu if the held walk survives at the REAL mf — the `survives()` gate at line 1756). Compares the LOST-GEM SET at mf=0 vs real mf (using `reachableFrom` from the landing platform). **Crucial fix:** states where the descent is NEVER offered at any real mf are EXCLUDED (no ONE-WAY note is emitted at all). The "none" fallback for MISSED warnings was an artifact — lasers only close as mf rises, so a held arc dead at mf=0 is dead at every mf.
 
-- **States examined (synthetic geometry):** 141 (all geometrically valid descent points across levels 0–13)
-- **Divergent states (mf=0 vs real mf LOST-GEM SET differs):** 89
-- **EXTRA ONE-WAY warnings (mf=0 lands, real-mf doesn't offer descent):** 89
-- **MISSED ONE-WAY warnings (mf=0 no land, real-mf lands):** 28
-- **Example divergent states (lost-gem set differs):**
-  - L0 left end x=40, y=250: mf=0 lost=[] land@(40,250) → mf=60 lost=[gem_a] land@(40,250)
-  - L0 left end x=86, y=210: mf=0 lost=[] land@(86,210) → mf=280 lost=[gem_a] land@(86,210)
-  - L1 right end x=228, y=230: mf=0 lost=[] land@(228,230) → mf=180 lost=[gem_b] land@(228,230)
-- **Verdict:** **DEFECT-LIVE** — the `ONE-WAY` cost annotation is computed at mf=0. In 89/141 states the lost-gem set differs at real mf (side laser closes off walk/jump on landing floor). In 89 states mf=0 emits an EXTRA ONE-WAY warning (descent not offered at real mf). In 28 states a warning is MISSED (mf=0 says death, real mf says land).
+- **States examined (descent offered at some real mf):** 97
+- **Divergent states (mf=0 vs real mf LOST-GEM SET differs):** 0
+- **States excluded (descent never offered at any real mf):** 1
+- **States where mf=0 descent dies (no ONE-WAY note at mf=0 either):** 18
+- **Verdict:** **DEFECT-THEORETICAL** — when conditioned on the descent actually being offered at real mf, the lost-gem set at mf=0 matches the lost-gem set at real mf in all 97 states. The defect is theoretical (exists in synthetic geometry only as a constant-clock assumption) with no evidence of a live divergence in the offered states.
 
 ### Site 6 — `jumpLandingNote` held scan (line 964)
-**Methodology corrected:** The audit doc called this DEFENSIBLE on a false premise (claiming the chosen namedX is re-checked at real mf in the empty branch; that branch only runs when there are no landings and simulates from `snap.cat.x`, not `namedX`). Census: for states where the held scan picks a namedX at mf=1, does the pick change at real mf (and would the real-mf arc from the picked namedX survive)?
+**Methodology corrected:** The audit doc called this DEFENSIBLE on a false premise (claiming the chosen namedX is re-checked at real mf in the empty branch; that branch only runs when there are no landings and simulates from `snap.cat.x`, not `namedX`). Census: for states where the held scan picks a namedX at mf=1, does the pick change at real mf (and would the real-mf arc from the picked namedX survive)? **Fixes applied:** (1) pick rule matches real code — chooses the good x NEAREST THE CAT whose held arc lands on a keeping floor (not first/leftmost); (2) survival check simulates the JUMP action (heldDir) from the picked x, not a walk; (3) added alive-at-start filter like sites 7/8.
 
-- **States examined (synthetic geometry):** 194 (all states where envelope finds a good window but current x fails)
-- **Divergent states (mf=1 namedX pick differs at real mf OR mf=1 pick dies at real mf):** 194
+- **States examined (alive-at-start filter):** 194
+- **States filtered (start inside laser at all mf):** 0
+- **Divergent states (mf=1 vs real-mf):** 194
+- **Breakdown:** pick shifts = 0, pick dies at real mf = 194
 - **Example divergent states:**
-  - L1 catX=50 y=230 target=gem_b: mf=1 pick x=52 plat=floor(109..161@212) → mf=260 pick x=54 same plat
-  - L1 catX=278 y=230 target=gem_a: mf=1 pick x=228 plat=floor(154..206@180) → mf=180 pick dies (laser/void)
-  - L2 catX=84 y=240 target=gem_a: mf=1 pick x=103 plat=floor(154..206@200) → mf=360 pick dies (laser/void)
-- **Verdict:** **DEFECT-LIVE** — all 194 states show divergence. The namedX pick shifts at real mf (different x or different landing platform), and in many cases the mf=1 pick is killed by the side laser at real mf. The audit's DEFENSIBLE verdict rested on a false premise (the empty branch does not re-check namedX).
+  - L1 catX=50 y=230 target=gem_b: mf=1 pick x=52 plat=floor(109..161@212) → mf=260 pick dies (held right)
+  - L1 catX=278 y=230 target=gem_a: mf=1 pick x=275 plat=floor(154..206@270) → mf=400 pick dies (held left)
+  - L2 catX=84 y=240 target=gem_a: mf=1 pick x=103 plat=floor(154..206@200) → mf=360 pick dies (held right)
+- **Verdict:** **DEFECT-LIVE** — all 194 states show divergence. The namedX pick does not shift (0 pick shifts), but in every case the mf=1 pick is killed by the side laser at real mf when the JUMP action is simulated. The audit's DEFENSIBLE verdict rested on a false premise (the empty branch does not re-check namedX).
 
 ### Site 7 — `walkOffFatalNote` walk check (line 1073)
 **Methodology corrected:** Adds alive-at-start filter — at high mf the side laser bounds close ~120px per side (see arc.cjs line 112 bounds test); a start position already inside the laser at that mf is a state the cat cannot be alive in and is excluded. Stops inflating the denominator: catX is enumerated but simulate is called at endX, so states are deduped by (level, floor, endX, side) and the distinct count is reported.
@@ -178,9 +176,9 @@ Synthetic state-space census across all playable levels (0..13), every platform 
 
 | Site | Function | Line | Clock | Verdict (pre-census) | Verdict (post-census) |
 |------|----------|------|-------|----------------------|-----------------------|
-| 5 | `buildObjectiveCall` descent cost | 782 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
+| 5 | `buildObjectiveCall` descent cost | 782 | `0` | LATENT-DEFECT | **DEFECT-THEORETICAL** |
 | 6 | `jumpLandingNote` held scan | 964 | `1` | DEFENSIBLE | **DEFECT-LIVE** |
 | 7 | `walkOffFatalNote` walk | 1073 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
 | 8 | `walkOffFatalNote` jump escape | 1075 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
 
-All four constant-clock sites are **DEFECT-LIVE**: divergent states exist in reachable synthetic geometry, and the divergence is exclusively in the dangerous direction (false-safe — the constant clock reports survival where the real laser kills). Site 6's verdict changed from DEFENSIBLE to DEFECT-LIVE because the audit's reasoning was based on a false premise.
+Three of four constant-clock sites are **DEFECT-LIVE** (sites 6, 7, 8): divergent states exist in reachable synthetic geometry, and the divergence is exclusively in the dangerous direction (false-safe — the constant clock reports survival where the real laser kills). Site 5's verdict changed from LATENT-DEFECT to DEFECT-THEORETICAL because when conditioned on the descent actually being offered at real mf, the lost-gem set at mf=0 matches the lost-gem set at real mf in all 97 states. Site 6's verdict changed from DEFENSIBLE to DEFECT-LIVE because the audit's reasoning was based on a false premise (the empty branch does not re-check the held-scan pick at real mf).
