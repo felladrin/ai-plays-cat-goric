@@ -2,6 +2,8 @@
 
 A language model plays [Cat Goric: Escape from the Warp Chamber](https://js13kgames.com/entries/cat-goric-escape-from-the-warp-chamber), my js13kGames 2021 entry (a 13kB game).
 
+[cat-goric-clef-seed1-8levels-2m30.webm](https://github.com/user-attachments/assets/2ddf13e1-ec1c-4002-9115-629147171ced)
+
 The model never writes code and never emits a plan. Every frame-group, it gets a text description of the game state and answers two multiple-choice questions. The driver reads the probability distribution over the allowed answers and presses a key. That is the whole policy.
 
 ## Layout
