@@ -436,7 +436,7 @@ Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each 
 | [Phocinae/Phocinae-Largha-150M-v1](https://huggingface.co/Phocinae/Phocinae-Largha-150M-v1) | 144M | `phocinae-server` 0.1.5 engine behind `adapters/systemone_adapter.py --backend phocinae`, `TORCHDYNAMO_DISABLE=1` | 0 (1 of 14) | done |
 | [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | 0 (1 of 14) | done |
 | [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | 0, 1, 3, 6, 7, 8, 9 (7 of 14) | done |
-| [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | | running |
+| [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | 0, 1, 2, 5, 8, 9 (6 of 14) | done |
 | [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | skipped: gated |
 | [ProKope-AI/ProKope-421M](https://huggingface.co/ProKope-AI/ProKope-421M) | 421M | | | skipped: gated |
 | [Akiki-AI/Akiki-MiniLM-L6-v2](https://huggingface.co/Akiki-AI/Akiki-MiniLM-L6-v2) | | | | skipped: gated |
@@ -511,3 +511,28 @@ Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
 | 13 | not cleared, 11, 329, 2 | not cleared, 11, 310, 2 |
 
 7 of 14 at both seeds (0, 1, 3, 6, 7, 8, 9), against Clef's 8 (0, 1, 2, 5, 7, 8, 9, 10). The two sets differ: Flash clears levels 3 and 6, which Clef fails at four seeds each, and fails levels 2 and 10 at one seed or both, which Clef clears. Level 6 had never cleared on any endpoint or build before. Level 5 cleared at seed 2 only and level 10 at seed 1 only, so neither is counted. Level 11 at seed 1 was interrupted by the tool's time limit and rerun from the start; the result above is the full rerun. No call was rejected by `--no-truncate`, so every prompt fit the 2048-token window.
+
+### Darwin-27B-ZTC
+
+Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap, except level 6):
+
+| Level | Seed 1 | Seed 2 |
+| --- | --- | --- |
+| 0 | cleared, 0, 4, 3 | same |
+| 1 | cleared, 0, 30, 3 | same |
+| 2 | cleared, 0, 28, 3 | same |
+| 3 | not cleared, 5, 358, 2 | not cleared, 6, 377, 2 |
+| 4 | not cleared, 7, 317, 3 | not cleared, 7, 274, 3 |
+| 5 | cleared, 0, 30, 3 | cleared, 0, 21, 3 |
+| 6 | invalid: stopped at step 274 on an empty objective menu, 0, 28, 2 | same |
+| 7 | not cleared, 14, 300, 2 | not cleared, 14, 265, 2 |
+| 8 | cleared, 1, 71, 3 | cleared, 0, 28, 3 |
+| 9 | cleared, 0, 22, 3 | same |
+| 10 | not cleared, 17, 194, 2 | not cleared, 21, 202, 2 |
+| 11 | not cleared, 7, 424, 2 | cleared, 3, 198, 3 |
+| 12 | not cleared, 7, 295, 1 | not cleared, 8, 287, 1 |
+| 13 | not cleared, 11, 347, 1 | not cleared, 12, 380, 1 |
+
+6 of 14 at both seeds (0, 1, 2, 5, 8, 9), a subset of Clef's 8. Level 11 cleared at seed 2 (3 deaths, 198 decisions, all 3 gems, advanced to level 12 at step 1401): the first clear of level 11 on any endpoint or build. It failed at seed 1, so it is not counted.
+
+Level 6 is not a model result. At both seeds, at step 274, the driver sent the objective question with no options, the adapter rejected it with a 422 (`'criteria' must be a non-empty object`), and the run paused. The same step at both seeds means it reproduces. A driver that asks the objective question with zero objectives is an open defect; it has not been diagnosed yet, so level 6 on this model is unmeasured. No other call failed in the 28 runs. Level 4 at seed 1 was interrupted by the tool's time limit and rerun from the start; the result above is the full rerun.
