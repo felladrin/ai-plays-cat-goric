@@ -136,3 +136,133 @@ Reading:
    124px down, the prompt says "3px right", and the only short way down is the left edge
    (left descent lands on gem_c's holder in 1 hop; the right side needs 3). This is the
    state the A/B probe targets.
+
+## L3 in the ladder: the wall moved from L4 to L3 (2026-10-10, unit in progress)
+
+Ladder archives `out/byom/PurpleMIST-Flash-1.0-FULL/{gapstack_s6,s7,s8,stack_s6}`:
+L3 stops all four on the 10-death cap with 2 peak gems; per-life decisions
+11-51; 195/221 objectives are gem_b (216,103); residency concentrates on
+floor(237..289@246) + the air above it. All 10 deaths are laser_or_bounds. The
+productive route (from the isolated s3 clear, 44 decisions): @290 jump_right ->
+@289 jump_right (0.61) -> @246 -> jump_right from x~243.5 -> @200 -> jump_left ->
+@152 -> gems. The ladder RUNS this route correctly (identical first two decisions
+per life, same probs) and still dies: the deaths are at the bottom-left of @246
+(212-220, 282-284) and at @246's right edge (289-291, 246-253).
+
+The death-loop state is AIRBORNE at (233,246) falling with left held: the menu is
+{left,right,none} only and left wins at 0.91-0.93; holding left drifts the cat
+left of @289's left end (206) and it falls out of bounds. The grounded text just
+before it advertises `Step off the LEFT end (x 237) and you steer to land on
+platform x 206..258 at y 289` - true only with mid-air steering, false with the
+objective bearing (gem_b is 17px LEFT) held: the envelope-overclaim class
+(DESC_HONEST territory, docs/dead-ends.md).
+
+Measured so far: (a) at the grounded (243.5,246,mf77) state the isolated winner
+and the ladder loser have the SAME probs (left ~0.58-0.60) - the build text did
+not flip this state; (b) death-history A/B at that state (clean vs three
+"previous attempt ... was hit by the laser" lines): left 0.526 clean vs
+0.452-0.480 with lines, NO argmax flip - death history is not the L3 flip here
+(script experiments/ab_death_history_l3.cjs). (c) A/B of the left-descent claim
+at (233,246) grounded reconstruction: jump_left holds argmax both ways - but
+the reconstruction is NOT the live state (live was airborne; the ladder archive
+records cat.dy=undefined for airborne entries, so the airborne prompt is NOT
+reconstructible from this archive - a logging gap to fix before this state can
+be probed with REPRODUCED).
+
+Supervisor data: gapstack_s9 cleared L0-L3 (L3 with 9 deaths) then FAILED L4
+(10 deaths, 2 gems) although isolated L4+GAP_DROP was 5/5 - the ladder-vs-isolated
+gap hits L4 too, which revives the death-history hypothesis at the L4 stuck
+states: probe as-is vs death-lines-removed there first (REPRODUCED required; the
+L4 ladder archive is run_full levels['4'].decisionsLog).
+
+### Death-history measurement at the stuck states (2026-10-10, supervisor unit)
+
+(1) Text diff at the L3 dither state (243.5,246,mf77,gem_b,gc0): the isolated-win
+build (EXIT-era flags) and the ladder build (+RISE_LABEL +NEG_HOLD +PORTAL_DESC
++GAP_DROP, EXIT_FACT v1.1) produce BYTE-IDENTICAL move-state text there. The
+only live-prompt difference is the death line the ladder carries (death at
+(238.25,246) step 2097, key 240,250, action none, laser).
+
+(2) A/B at that state (experiments/ab_death_history_l3.cjs, systemone):
+
+| arm                        | argmax | left  | jump_left | jump_right |
+|----------------------------|--------|-------|-----------|------------|
+| archive ladder (1 line)    | left   | 0.578 | 0.138     | 0.158      |
+| archive isolated (0 lines) | left   | 0.600 | 0.169     | 0.138      |
+| rebuilt clean              | left   | 0.526 | 0.289     | 0.038      |
+| + "chose none, laser"      | left   | 0.452 | 0.335     | 0.058      |
+| + "chose jump, laser"      | left   | 0.480 | 0.338     | 0.055      |
+| + "chose jump_left, laser" | left   | 0.456 | 0.371     | 0.056      |
+
+No arm flips the argmax; the death lines move mass between the jump options but
+left wins everywhere. REPRODUCED FAILS (rebuilt clean 0.526 vs archive 0.578):
+the run_full archive does not record cat.dx (a walking cat has dx=+-2.2 and the
+prompt's momentum facts differ), and L4 entries also lack gemsCollected/
+gemPositions. Exact live prompts are NOT reconstructible from run_full archives;
+the .log files are summary lines only. The only exact instrument is replay.cjs
+(in-process replay with the real recorder). Verdict at the states measured: the
+death-history lines do NOT flip the stuck decisions - hypothesis not supported
+at L3 (243.5,246); the L4 (180.5,241,ascent_left) state carries three death
+lines (right/oob, left/laser, left/oob at key 180,240) and the archive still
+shows left 0.966 - the lines are inert there too.
+
+## Isolated L3 winners vs losers (2026-10-10, supervisor unit)
+
+Archives: EXIT/{s3,s6,s7,s10} + RISE/{s8,s12,s13} sawAdvance=true (the clear
+flag; won/reachedWin stay false - L3 advances, it does not win the game);
+EXIT/{s8,s9} + RISE/{s9,s11} sawAdvance=false.
+
+Decision residency at the hot keys (decisions at key x,y rounded to 10):
+
+| run | 240,250 | 250,250 | outcome |
+|---|---|---|---|
+| W EXIT/s3 | 4 | 4 | advance |
+| W EXIT/s6 | 24 | 10 | advance |
+| W EXIT/s7 | 6 | 0 | advance |
+| W EXIT/s10 | 8 | 3 | advance |
+| W RISE/s8 | 19 | 14 | advance |
+| W RISE/s12 | 0 | 0 | advance |
+| W RISE/s13 | 6 | 6 | advance |
+| L EXIT/s8 | 38 | 18 | no advance |
+| L EXIT/s9 | 46 | 20 | no advance |
+| L RISE/s9 | 51 | 25 | no advance |
+| L RISE/s11 | 35 | 25 | no advance |
+
+The losers' sink is the same @246 edge zone as the ladder analysis (240,250 =
+the x~243.5 descent-claim dither). All eleven runs are deterministic-identical
+through the first gem (gem_b at mf 151) and the first ~12 keys after it.
+First divergence (RISE build, W s8 vs losers): s11 diverges at seq idx 4 - the
+winner is already at (289,200) jumping left toward @152 at mf 197; the loser is
+still at (243.5,246) at mf 181 with obj ascent_right. The loser's text there is
+CORRECT and it picked the productive move (jump_right 0.637) - but at mf 181 the
+right laser is 41px from the objective and the jump dies at the wall; the winner
+made the same transit ~35 frames earlier. s9 diverges at idx 19 at mf 444 -
+safe rect inset 89, the chamber nearly closed.
+
+Verdict: the text is not the lever at the first divergence. L3 is a clock trap:
+the @246 left/jump dither burns frames, and every frame spent there closes the
+laser window for the @200/@152 climb. Seeds only shuffle the menu order, which
+flips the dither; losers lose the dither, linger, and the clock finishes them.
+Plain per-level variance, as the supervisor suspected - the lever would be
+cadence at the @246 dither (fewer frames spent there), not a new fact.
+
+## Escalation mode at the @246 dither keys (2026-10-10, supervisor unit)
+
+Counted from the per-level L3.log files at the two dither keys (240,250 /
+250,250), pairing each `move=X(argmax Y) mode=M T=T priorDeaths=P` line with the
+`step ... cat=(x,y)` line that follows it:
+
+| group | ARGMAX | SAMPLE | SAMPLE share | SAMPLE draws != argmax |
+|---|---|---|---|---|
+| winners (EXIT s3,s6,s7,s10; RISE s8,s12,s13) | 58 | 69 | 54% | 46/69 (67%) |
+| losers (EXIT s8,s9; RISE s9,s11) | 63 | 195 | 76% | 128/195 (66%) |
+
+Per-run loser shares: 66%, 68%, 83%, 83% SAMPLE. T at those keys runs 1.5-3.0
+(priorDeaths up to 10). The losers' dither is mostly SAMPLE, and two thirds of
+the samples land off-argmax: the escalation is self-feeding the dither. The
+loop is closed by its own cause - deaths AT the dither key raise priorDeaths,
+which raise T (T = 1.0 + 0.5*priorDeaths), which makes the off-argmax jump/left
+variants likely, which keeps the cat at the key where it dies again. Winners
+spend fewer decisions there and escape before priorDeaths compounds (their max
+T at the key is also 3.0 but reached later). The lever is how escalation treats
+a 2-key oscillation, not the prompt text.

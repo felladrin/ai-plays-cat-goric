@@ -13,10 +13,13 @@
 "use strict";
 
 const fs = require("fs");
+const path = require("path");
 const CFG = require("./config.cjs");
 const { chromium } = CFG.resolvePlaywright();
 const { makeClient, makeHalogenClient, makeQwenLocalClient, makeHalogenLogprobsClient } = require("./jev.cjs");
 const { decide, layaDecide, halogenDecide } = require("./decision.cjs");
+const { createOscHistory } = require("./decision.cjs");
+const { makeReplayDecideFn } = require("./replay.cjs");
 const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
@@ -127,6 +130,21 @@ const ENDPOINTS = {
     },
     minIntervalMs: 0,
     decide,
+  },
+  // Offline replay of an archived run (REPLAY_JSON); see replay.cjs.
+  // Mirrored verbatim in run_full.cjs: test_runner_parity.cjs asserts the
+  // ENDPOINTS blocks are textually identical across both runners.
+  replay: {
+    kind: "jev",
+    baseUrl: "replay:",
+    path: "/v1/systemone",
+    get model() {
+      return process.env.REPLAY_JSON ? "replay:" + path.basename(process.env.REPLAY_JSON) : "replay";
+    },
+    minIntervalMs: 0,
+    get decide() {
+      return makeReplayDecideFn(decide);
+    },
   },
   // halogen-flash-server 0.13.8 scores a label from top_logprobs in one forward
   // pass, so this endpoint now runs the SAME policy as every other classifier
@@ -301,6 +319,7 @@ const VIDEO_DIR = CFG.outPath("video");
     });
     // Every reset starts a fresh attempt, so revisit evidence must not carry over.
     visitCounts.clear();
+    if (oscHistory) oscHistory.clear();
     visitWin.length = 0;
     decideMemo.lockedObjective = null;
   };
@@ -363,6 +382,8 @@ const VIDEO_DIR = CFG.outPath("video");
   const deathHistory = [];
   // Per-attempt revisit counts; see run_level.cjs for why this clears on reset.
   const visitCounts = new Map();
+  // ESC_FIX: per-attempt 2-key oscillation memory; identical to run_level.cjs.
+  const oscHistory = process.env.ESC_FIX === "1" ? createOscHistory() : null;
   // Carries the objective across a jump arc. decide() re-asks the objective only
   // while the cat is grounded: the airborne prompt loses the reachability
   // annotations (platformKeyUnder stops resolving a few frames into a jump), so
@@ -497,6 +518,7 @@ const VIDEO_DIR = CFG.outPath("video");
       await shot(`level${String(s.level).padStart(2, "0")}_entry`);
       deathHistory.length = 0;
       visitCounts.clear();
+      if (oscHistory) oscHistory.clear();
       visitWin.length = 0;
       decideMemo.lockedObjective = null;
       // Reset the cross-decision trackers too. Without this, the first death on a
@@ -569,7 +591,7 @@ const VIDEO_DIR = CFG.outPath("video");
       if (visitWin.length > VISIT_WINDOW) visitWin.shift();
       visitCounts.clear();
       for (const k of visitWin) visitCounts.set(k, (visitCounts.get(k) || 0) + 1);
-      d = await decideFn(client, s, levelGems, () => {}, deathHistory, visitCounts, decideMemo);
+      d = await decideFn(client, s, levelGems, () => {}, deathHistory, visitCounts, decideMemo, oscHistory);
     } catch (e) {
       if (e && e.name === "HalogenParseError") {
         // One malformed response must not end a fifteen-level ladder. Record it as
@@ -633,17 +655,24 @@ const VIDEO_DIR = CFG.outPath("video");
       if (improved <= STALL_MIN_PROGRESS_PX) {
         // Record ONE failure per DISTINCT key per stall event (escalate by 1 per
         // key per event, like a repeated death — not jump to the T cap).
+        // STALL_EXPLORE=0 (A/B gate, ladder-only): log the stall but record NO
+        // failures, so the stall cannot trigger exploration; deaths still feed
+        // the history as before. Unset = current behaviour, so existing ladder
+        // archives stay comparable.
+        const gateOff = process.env.STALL_EXPLORE === "0";
         const cause = `no progress toward ${d.objective} (best distance not improving over ${STALL_WINDOW} decisions)`;
         const seen = new Set();
-        for (const w of stallWindow) {
-          if (seen.has(w.key)) continue;
-          seen.add(w.key);
-          deathHistory.push({ key: w.key, action: d.move, cause });
+        if (!gateOff) {
+          for (const w of stallWindow) {
+            if (seen.has(w.key)) continue;
+            seen.add(w.key);
+            deathHistory.push({ key: w.key, action: d.move, cause });
+          }
+          while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
         }
-        while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
         const mf = movingFrames(s);
         console.log(
-          `  [L${s.level} STALL @ step ${steps}] no progress toward ${d.objective} (improved ${Math.round(improved)}px over ${STALL_WINDOW} decisions) -> recorded 1 failure per distinct key (${seen.size}), exploration takes over; movingFrames used ${Math.round(mf)}`
+          `  [L${s.level} STALL @ step ${steps}] no progress toward ${d.objective} (improved ${Math.round(improved)}px over ${STALL_WINDOW} decisions) -> ${gateOff ? "STALL_EXPLORE=0: nothing recorded, exploration not triggered" : `recorded 1 failure per distinct key (${seen.size}), exploration takes over`}; movingFrames used ${Math.round(mf)}`
         );
         stallWindow.length = 0;
         // Do NOT reset: let the now-stochastic policy break the loop in place.
@@ -652,9 +681,15 @@ const VIDEO_DIR = CFG.outPath("video");
     L.decisionsLog.push({
       wallMs: decisionWallMs,
       step: steps,
-      cat: { x: r2(s.cat.x), y: r2(s.cat.y) },
+      // Field parity with run_level.cjs's log entry: a ladder state must be
+      // byte-rebuildable for an offline probe exactly like an isolated one.
+      // dx/dy/h drive the prompt's momentum and arc facts; gemsCollected and
+      // gemPositions are what the gem-list block of the prompt reads.
+      cat: { x: r2(s.cat.x), y: r2(s.cat.y), dx: r2(s.cat.dx), dy: r2(s.cat.dy), h: r2(s.cat.height) },
       onPlatform: s.onPlatform,
       movingFrames: r2(movingFrames(s)),
+      gemsCollected: s.gemsCollected,
+      gemPositions: s.gemPositions,
       objective: d.objective,
       presentedOrder: d.presentedOrder,
       chosenPosition: d.presentedOrder ? d.presentedOrder.indexOf(d.objective) : null,

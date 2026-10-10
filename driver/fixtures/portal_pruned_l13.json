@@ -1,0 +1,40 @@
+{
+ "entry": {
+  "step": 2144,
+  "wallMs": 1791616904718,
+  "cat": {
+   "x": 197.75,
+   "y": 140,
+   "dy": 1.6,
+   "h": 18
+  },
+  "onPlatform": false,
+  "movingFrames": 313,
+  "gemsCollected": 3,
+  "gemPositions": [],
+  "objective": "portal",
+  "presentedOrder": [
+   "portal"
+  ],
+  "move": "right",
+  "moveProbs": {
+   "right": 1
+  },
+  "candidatesOffered": 1,
+  "modelAsked": false
+ },
+ "levelGems": [
+  [
+   279,
+   169
+  ],
+  [
+   43,
+   129
+  ],
+  [
+   207,
+   203
+  ]
+ ]
+}

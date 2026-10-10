@@ -84,7 +84,7 @@ function parseArgs(argv) {
     resolve: false, catHeight: 18, canvasWidth: 360, maximumLaserY: 310, parlog: null,
     assumeEmptyDeathHistory: false, pairs: false, patched: null, baseline: null, showState: false,
     selftest: false, limit: 8, tol: 1e-6, quiet: false, dryRun: false,
-    objective: false, forceOrder: true,
+    objective: false, forceOrder: true, endpoint: "halogen",
   };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
@@ -114,6 +114,7 @@ function parseArgs(argv) {
     else if (k === "--tol") a.tol = Number(next());
     else if (k === "--quiet") a.quiet = true;
     else if (k === "--dry-run") a.dryRun = true;
+    else if (k === "--endpoint") a.endpoint = next();
     else die(`unknown argument ${k}`);
   }
   if (!a.run) die("--run <archive.json> is required");
@@ -390,7 +391,22 @@ function reconstruct(archive, entry, opts, priorDeaths) {
 
 // ------------------------------------------------------------------ the endpoint
 
-function makeClient() {
+function makeClient(endpoint) {
+  // systemone: same client run_level.cjs builds for the clef/systemone endpoints
+  // (plain System One POST, answers with probabilities over the criteria). The
+  // baseline halogen client is unchanged for existing usage.
+  if (endpoint === "systemone") {
+    const { makeClient: makeJevClient } = require(path.join(DRIVER, "jev.cjs"));
+    if (!process.env.SYSTEMONE_BASE_URL) refuse("--endpoint systemone needs SYSTEMONE_BASE_URL");
+    return makeJevClient({
+      baseUrl: process.env.SYSTEMONE_BASE_URL,
+      path: "/v1/systemone",
+      model: process.env.SYSTEMONE_MODEL || "systemone",
+      minIntervalMs: 0,
+      logger: (m) => { if (!global.__probeQuiet) console.log(`    [endpoint] ${m}`); },
+    });
+  }
+  if (endpoint !== "halogen") refuse(`--endpoint ${endpoint}: only 'halogen' (default) and 'systemone' are supported`);
   const { makeHalogenLogprobsClient } = require(path.join(DRIVER, "jev.cjs"));
   return makeHalogenLogprobsClient({
     baseUrl: CFG.LLAMA_BASE_URL,
@@ -695,7 +711,7 @@ async function main() {
   const archive = JSON.parse(fs.readFileSync(opts.run, "utf8"));
   if (!archive.log || !archive.log.length) die(`archive has no log: ${opts.run}`);
   const priorDeaths = loadPriorDeaths(opts.parlog, archive.log);
-  const client = makeClient();
+  const client = makeClient(opts.endpoint);
 
   if (opts.selftest || opts.each) return selftest(archive, opts, priorDeaths, client);
 

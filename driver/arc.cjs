@@ -44,6 +44,7 @@ function overlaps(cx, cy, catHeight, p) {
 //   "timeout"- did not resolve within maxFrames (treated as unknown by callers)
 function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
   const maxFrames = opts.maxFrames || 240;
+  const onFrame = opts.onFrame || null;
   const plats = platformBoxes(level);
   const goLeft = action.includes("left");
   const goRight = action.includes("right");
@@ -66,6 +67,7 @@ function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
     x += dx;
     y += dy;
     if (dx !== 0 || dy !== 0) mf += 1;
+    if (onFrame) onFrame(x, y, f, dy);
 
     // isOutOfLasersBounds / isCollidingWithLaser, in the cat's own time units.
     // Two tests, OR'd, kill the cat (updateCatSprite.ts:65):

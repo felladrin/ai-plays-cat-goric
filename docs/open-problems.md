@@ -138,3 +138,30 @@ Video only finalises on `context.close()`, so a kill mid-run leaves a zero-durat
 ## 5. Levels never measured on a good build
 
 Levels 5 to 13 have never had a clean regression baseline established the way levels 0 to 4 have. The counts in [results.md](results.md) come from a mix of builds.
+
+## 6. Cadence gap: episode lengths and the ladder's exploration path (2026-10-10, measured)
+
+Two measurements that bound any net-displacement / re-ask trigger before it is
+designed (`experiments/dither_length.cjs`, `experiments/ladder_stall.cjs`).
+
+**Episode lengths** (L10+L13, all Flash archives: base, EXIT, NEG; lives split by
+deathLog; episode = maximal run of >=3 decisions inside a 60x60 box): 856
+episodes, median 5 decisions, p90 10, max 50. Of the 844 episodes whose life
+ended, 191 ended within 0 decisions of the episode end, 304 within 4, 501 within
+10. So HALF of dither-to-death sequences are over before a 10-decision window
+(the existing STALL shape) can fire; a trigger that acts must see the episode in
+<=4 decisions. The counter-constraint: 511 of 856 episodes are NORMAL play (the
+life continued >6 decisions), and their length modes (3, 5, 8) are the same as
+the fatal ones - a 60px box at a 3-4 decision window fires on ordinary floor
+crossings. Box occupancy cannot separate them; the separating signature has to be
+reversal structure (net displacement vs the route direction), not locality.
+
+**The ladder's exploration path precedes almost every death.** The two ladder
+logs (s3, s6) differ from isolated runs in stall handling (run_full records a
+failure per key and lets EXPLORATION sampling take over; run_level aborts). Per
+level: s3 L3 - 21 STALL events, 10 deaths, 9 of them AFTER the first STALL;
+s6 L2 - 35 STALL events, 10 deaths, ALL 10 after the first STALL. 19 of 20 ladder
+deaths happen in the post-STALL exploration regime, on levels that clear in
+isolation. Correlation, not proof of causation (the stall and the deaths share a
+cause in the underlying stuckness), but the ladder A/B that separates them is
+cheap: same seeds, ladder, exploration path off vs on.

@@ -18,8 +18,12 @@ mkdir -p "$OUT_DIR"
 for L in $levels; do
   log="$OUT_DIR/L$L.log"
   node run_level.cjs systemone "$L" > "$log" 2>&1
+  # Level 13 is the exception in the repo's clear rule: it cannot "advance out of
+  # target" (the portal ends the game), so cleared must also accept the win line.
+  cleared="$(grep -oE 'observed advance out of target\): (true|false)' "$log" | grep -oE 'true|false')"
+  grep -q 'game won (observed level 14 or advance out of 13): true' "$log" && cleared=true
   printf "L%s s%s: cleared=%s deaths=%s decisions=%s gems=%s steps=%s\n" "$L" "$seed" \
-    "$(grep -oE 'observed advance out of target\): (true|false)' "$log" | grep -oE 'true|false')" \
+    "$cleared" \
     "$(grep -oE '^deaths: [0-9]+' "$log" | tail -1 | grep -oE '[0-9]+')" \
     "$(grep -oE '^decisions made: [0-9]+' "$log" | tail -1 | grep -oE '[0-9]+')" \
     "$(grep -oE 'gems collected \(this level, PEAK\): [0-9]+' "$log" | grep -oE '[0-9]+$')" \
