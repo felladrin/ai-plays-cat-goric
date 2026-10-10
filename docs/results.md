@@ -435,7 +435,7 @@ Every run below is `driver/experiments/sweep_systemone.sh <model> <seed>`: each 
 | --- | --- | --- | --- | --- |
 | [Phocinae/Phocinae-Largha-150M-v1](https://huggingface.co/Phocinae/Phocinae-Largha-150M-v1) | 144M | `phocinae-server` 0.1.5 engine behind `adapters/systemone_adapter.py --backend phocinae`, `TORCHDYNAMO_DISABLE=1` | 0 (1 of 14) | done |
 | [olaverse/PurpleMIST-Mini-1.0](https://huggingface.co/olaverse/PurpleMIST-Mini-1.0) | 1.9B | its own `serve.py --no-truncate` | 0 (1 of 14) | done |
-| [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | | running |
+| [olaverse/PurpleMIST-Flash-1.0](https://huggingface.co/olaverse/PurpleMIST-Flash-1.0) | 7.9B | its own `serve.py --no-truncate` (merged checkpoint) | 0, 1, 3, 6, 7, 8, 9 (7 of 14) | done |
 | [FINAL-Bench/Darwin-27B-ZTC](https://huggingface.co/FINAL-Bench/Darwin-27B-ZTC) | 27B | `autojev` behind `adapters/systemone_adapter.py --backend autojev` | | running |
 | [empiriolabsai/aplomb-1](https://huggingface.co/empiriolabsai/aplomb-1) | | | | skipped: gated |
 | [ProKope-AI/ProKope-421M](https://huggingface.co/ProKope-AI/ProKope-421M) | 421M | | | skipped: gated |
@@ -488,3 +488,26 @@ Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
 | 13 | not cleared, 14, 371, 2 | not cleared, 17, 385, 2 |
 
 1 of 14 at both seeds (level 0). Level 10 cleared at seed 2 only (1 death, 79 decisions), after failing at seed 1 with all 3 gems collected, so it is not counted. Prompts fit its 2048-token window: the server ran with `--no-truncate`, which rejects an oversized prompt, and no run was rejected.
+
+### PurpleMIST-Flash-1.0
+
+Cleared, deaths, decisions, gems (every failure ran out the 3000-step cap):
+
+| Level | Seed 1 | Seed 2 |
+| --- | --- | --- |
+| 0 | cleared, 0, 4, 3 | same |
+| 1 | cleared, 0, 22, 3 | cleared, 0, 21, 3 |
+| 2 | not cleared, 12, 504, 2 | not cleared, 11, 496, 2 |
+| 3 | cleared, 2, 34, 3 | cleared, 11, 173, 3 |
+| 4 | not cleared, 17, 341, 1 | not cleared, 24, 338, 1 |
+| 5 | not cleared, 8, 226, 2 | cleared, 4, 139, 3 |
+| 6 | cleared, 3, 202, 3 | cleared, 5, 282, 3 |
+| 7 | cleared, 0, 32, 3 | cleared, 0, 34, 3 |
+| 8 | cleared, 4, 131, 3 | cleared, 9, 313, 3 |
+| 9 | cleared, 1, 68, 3 | cleared, 0, 29, 3 |
+| 10 | cleared, 6, 96, 3 | not cleared, 17, 231, 2 |
+| 11 | not cleared, 7, 285, 2 | not cleared, 7, 313, 2 |
+| 12 | not cleared, 8, 298, 1 | not cleared, 8, 276, 1 |
+| 13 | not cleared, 11, 329, 2 | not cleared, 11, 310, 2 |
+
+7 of 14 at both seeds (0, 1, 3, 6, 7, 8, 9), against Clef's 8 (0, 1, 2, 5, 7, 8, 9, 10). The two sets differ: Flash clears levels 3 and 6, which Clef fails at four seeds each, and fails levels 2 and 10 at one seed or both, which Clef clears. Level 6 had never cleared on any endpoint or build before. Level 5 cleared at seed 2 only and level 10 at seed 1 only, so neither is counted. Level 11 at seed 1 was interrupted by the tool's time limit and rerun from the start; the result above is the full rerun. No call was rejected by `--no-truncate`, so every prompt fit the 2048-token window.
