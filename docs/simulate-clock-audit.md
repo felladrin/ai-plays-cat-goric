@@ -32,7 +32,7 @@ const arc = simulate(snap.level, snap.cat.x, run.y, 0, snap.cat.height, dir, mf,
 **What it gates:** The "lands" clause when the optimistic envelope reaches nothing — describes the held-arc outcome (laser/void/landed) so the model knows the jump is fatal.
 **Verdict:** DEFENSIBLE. Uses live drone positions. This is the laser-survival check for the jump the model might actually pick.
 
-### 4. `descentPoints` gate — line 1771
+### 4. `descentPoints` gate — line 1801
 ```js
 const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
 const survives = (hold) => {
@@ -87,15 +87,36 @@ const jmp = simulate(snap.level, endX, run.y, 0, snap.cat.height, `jump_${dir}`,
 **Reasoning:** Same clock as site 7. A jump that `lands` at mf=0 may hit the side laser at real mf. The model is told a jump escape exists when it does not at the current clock — a **false positive** escape route.
 **What would settle it:** Same census as site 7. Count cases where the jump escape is reported at mf=0 but the real-mf outcome is `laser`.
 
-### 9. `descentPoints` LANDDESC_HELD — line 1807
+### 9. `descentPoints` LANDDESC_HELD — line 1839
 ```js
 const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { grounded: true });
 ```
 **What it gates:** The landing description text for descent points (only when `LANDDESC_HELD=1`, not the default). Describes where the held arc lands when stepping off the descent end.
 **Clock passed:** `0` (most favourable).
 **Verdict:** DEFENSIBLE (guarded).
-**Reasoning:** This code path is only active under `LANDDESC_HELD=1` (opt-in env flag). The *offer* of the descent point is already gated by the real-clock check at line 1771 (site 4). This site only affects the descriptive text shown to the model. At mf=0 the held arc may land on a platform that at real mf would be cut by the laser, but the descent itself would not be offered if it didn't survive at real mf. The text may be slightly optimistic about *where* the cat lands, but the safety of the descent is already verified.
+**Reasoning:** This code path is only active under `LANDDESC_HELD=1` (opt-in env flag). The *offer* of the descent point is already gated by the real-clock check at line 1801 (site 4). This site only affects the descriptive text shown to the model. At mf=0 the held arc may land on a platform that at real mf would be cut by the laser, but the descent itself would not be offered if it didn't survive at real mf. The text may be slightly optimistic about *where* the cat lands, but the safety of the descent is already verified.
 **What would settle it:** Enable `LANDDESC_HELD=1` and census the described landing platform at mf=0 vs real mf. If the described platform changes, the text is optimistic.
+
+---
+
+### 10. `exitDirection` jump arc — line 1937 (real clock; added with EXIT_FACT, 2026-10-10)
+```js
+const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, { grounded: true });
+```
+**What it gates:** The jump_left/jump_right routes of the EXIT_FACT predicate (docs/flash-l2-l5-analysis.md): whether a jump from the cat's own x lands on a floor that routes to the objective's holder at the current laser state.
+**Clock passed:** `mf`, the real clock, caller-supplied: the driver passes `route_clock.movingFramesOf(snap)`; the census passes the archived `movingFrames`.
+**Verdict:** DEFENSIBLE. Real clock at every call site; the parameter only exists so the census can replay the archived clock.
+
+---
+
+### 11. `reachHolds` steering traces — line 1981 (real clock; added with REACH_FACT, 2026-10-10)
+```js
+const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
+  grounded: false, onFrame: ... });
+```
+**What it gates:** The REACH_FACT predicate (docs/flash-l13-analysis.md): which steering holds pass the objective's collision box before landing or dying.
+**Clock passed:** `mf`, the real clock, caller-supplied: the driver passes `route_clock.movingFramesOf(snap)`; the census passes the archived `movingFrames`.
+**Verdict:** DEFENSIBLE. Real clock at every call site.
 
 ---
 
@@ -106,12 +127,14 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 | 1 | `floorBelow` | 398 | real `mf` | DEFENSIBLE |
 | 2 | `jumpIsNoop` | 443 | real `mf` | DEFENSIBLE |
 | 3 | `jumpLandingNote` empty | 1014 | real `mf` | DEFENSIBLE |
-| 4 | `descentPoints` gate | 1771 | real `mfNow` | DEFENSIBLE |
+| 4 | `descentPoints` gate | 1801 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 791 | `0` | **LATENT-DEFECT** |
 | 6 | `jumpLandingNote` held scan | 979 | real `mfNow` | **FIXED** |
 | 7 | `walkOffFatalNote` walk | 1088 | `0` | **LATENT-DEFECT** |
 | 8 | `walkOffFatalNote` jump | 1090 | `0` | **LATENT-DEFECT** |
-| 9 | `descentPoints` LANDDESC_HELD | 1807 | `0` | DEFENSIBLE-guarded |
+| 9 | `descentPoints` LANDDESC_HELD | 1839 | `0` | DEFENSIBLE-guarded |
+| 10 | `exitDirection` jump arc | 1937 | real `mf` (caller) | DEFENSIBLE |
+| 11 | `reachHolds` steering traces | 1981 | real `mf` (caller) | DEFENSIBLE |
 
 **Latent defects: 3** (sites 5, 7, 8). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
@@ -124,7 +147,7 @@ Synthetic state-space census across all playable levels (0..13), every platform 
 **NOTE:** The word "live" in this census means "exists in synthetic geometry", not "fires in play". There are no run archives behind these numbers.
 
 ### Site 5 — `buildObjectiveCall` descent cost (line 791)
-**Methodology corrected:** Enumerates descent points exactly as `descentPoints()` does (same gates, same "remaining objective below" condition). Conditions each candidate on the site-4 offer gate (the descent is only on the menu if the held walk survives at the REAL mf — the `survives()` gate at line 1756). Compares the LOST-GEM SET at mf=0 vs real mf (using `reachableFrom` from the landing platform). **Crucial fix:** states where the descent is NEVER offered at any real mf are EXCLUDED (no ONE-WAY note is emitted at all). The "none" fallback for MISSED warnings was an artifact — lasers only close as mf rises, so a held arc dead at mf=0 is dead at every mf.
+**Methodology corrected:** Enumerates descent points exactly as `descentPoints()` does (same gates, same "remaining objective below" condition). Conditions each candidate on the site-4 offer gate (the descent is only on the menu if the held walk survives at the REAL mf — the `survives()` gate at line 1800). Compares the LOST-GEM SET at mf=0 vs real mf (using `reachableFrom` from the landing platform). **Crucial fix:** states where the descent is NEVER offered at any real mf are EXCLUDED (no ONE-WAY note is emitted at all). The "none" fallback for MISSED warnings was an artifact — lasers only close as mf rises, so a held arc dead at mf=0 is dead at every mf.
 
 - **States examined (descent offered at some real mf):** 97
 - **Divergent states (mf=0 vs real mf LOST-GEM SET differs):** 0

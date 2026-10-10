@@ -99,3 +99,70 @@ On level 4 it claims a jump from floor(263..315@171) reaches gem_c's floor at y=
 The prototype carries the reachable set as a list of intervals and, on each descending frame, records a landing where the set overlaps a platform and **subtracts** that range, because those trajectories stop there. Measured across all 14 levels: **68 edges removed, 0 added**, every removal a trajectory that would have to pass through a platform. Validated against the known-good case that a direction-restriction experiment broke.
 
 Not shipped: it changes the stranding annotations on levels that pass today, and removing edges makes more objectives look unreachable, so a false removal would be worse than the false edges it fixes. It needs a levels 0 to 3 regression run of its own.
+
+## FLOAT_EXIT: the route-to-collector exit fact (2026-10-10, measured, rejected)
+
+`dec.floatExit` (decision.cjs, kept exported, no gate built): the holderless
+sibling of `exitDirection`. For a floating gem (no platform under its spawn -
+L11's gem_a at (180,76)) the target is the set of platforms from which some
+jump's traced arc passes the gem's box (the COLLECT set, `arc.simulate` with
+the game's collision boxes, cached per level+gem). Routes are the same
+vocabulary as `exitDirection`: `descentPoints` landings plus exact jump arcs
+from the cat's x, BFS over g4 to the set. Fire iff all shortest routes leave
+one side, opposite the gem's horizontal bearing. Census
+`experiments/census_float_exit.cjs`, 372 archives / 70,351 decisions:
+
+```
+ 3 CLEARED   67/  251 comply=22%   3 failed   753/7639 comply=30%
+ 5 CLEARED    1/  972 comply= 0%   5 failed    19/1947 comply=21%
+ 6 failed   133/ 8275 comply=21%
+10 CLEARED    7/  316 comply= 0%  10 failed    90/3454 comply= 2%
+11 CLEARED   13/  198 comply=31%  11 failed   870/6402 comply= 4%
+13 failed    67/ 9261 comply= 0%
+```
+
+Rejected on the EXIT_FACT bar, read the right way: what made EXIT_FACT sound
+was that CLEARING runs complied with the named exit ~95% of the time and
+failing runs ~23% - the fact described what winners already do. Here clearing
+runs comply at 22% (L3), 0% (L5, L10), 31% (L11): no better than failing runs
+(30%, 21%, 2%). Winners do not follow this exit, so the "shortest route"
+claim is not what separates a clear, and stating it would push the model off
+routes that work. Two secondary flaws: the single-move route vocabulary cannot
+see walk-then-jump routes, so far from the productive end the predicate can
+name the dead-end side as shortest (L11 s1 step 128: fire says D=right, the
+route to the dead-end floor(181..233@187), while the productive route is
+walk-left-then-jump-left); and the fire rate on clearing runs (27% on L3)
+means the sentence would have fired inside winning trajectories. The predicate
+stays exported for the record; no gate, no prompt text. Full census context:
+[flash-l10-l12-analysis.md](flash-l10-l12-analysis.md).
+
+## DESC_HONEST: honest descent-landing attribution (2026-10-10, measured, rejected, code removed)
+
+A descent end can advertise a landing platform that NO single hold from just past
+that edge produces - only a mid-air reversal (the `landingsFrom` band envelope
+claims it). DESC_HONEST appended the execution each claim needs ("(only by
+reversing mid-air)" / "(only by changing direction mid-air)") to the descent
+crit and the move floor note, gated `DESC_HONEST=1`, firing only on the census
+predicate's states (nearer end, live-gem floor, sibling end reliable). The
+target was the L4 trap: the right descent's "or x 156..208 at y 241" disjunct
+is what pulls the cat into the B<->C cycle.
+
+The decisive probe worked: at the Flash L4 s1 archetype (decision 22, step 275)
+the gate flipped the chained move from right 0.514 to left 0.575 while the
+objective stayed gem_c. Live it did not: **L4 not cleared at seed 3 (19 deaths,
+1 gem) or seed 4 (15 deaths, 1 gem)** - the same as the same seeds without it
+(18 and 16 deaths, 1 gem): a move flip at one archetype decision did not change
+the trajectory. And **L8 regressed**: with the gate, seed 3 not cleared (14
+deaths, 3 gems, ran out the cap); without it the same seed cleared (4 deaths,
+89 decisions). The census had flagged the risk: 443 firings on L8 with inverted
+compliance (the L8 signal was the counterexample in the census table). A
+one-line gate with a proven probe flip still went null-to-negative live: the
+probe measures one decision, the run is the trajectory.
+
+Code removed from decision.cjs (descHonestSuffix, descHonestLiveFloors, the
+dropFrom/descentPoints hooks); the census (`experiments/census_desc_honest.cjs`)
+and the probe stay for the record. Verified after removal: `npm test` green
+(only the expected-red `test_objective_lock`), and the HEAD blast with all gates
+off shows **0 state-text diffs** over 71,062 rebuilt decisions (the 978 menu
+diffs are the ungated routeBlocked fix, L4 850 + L6 128, counted separately by
+`experiments/blast_gates_head.cjs`).
