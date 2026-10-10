@@ -157,3 +157,314 @@ vocabulary sees walk-then-jump); or restrict firing to states within a jump's
 carry of the productive end; or drop the lever and treat L11 as the same
 execution-oscillation family as L6/L12 (open-problems §2b), where six prompt
 levers have already gone null.
+
+## L12: EXIT_FACT flips live, but the LEFT route it names snaps the cat UP (2026-10-10)
+
+The "EXIT_FACT fires but the model refuses" reading is **outdated**. Comparing the
+baseline and the fixed build (`EXIT_FACT=1`) at the identical archetype state
+(`floor(247..299@125)`, obj gem_a, mf 303, cat 263.25): baseline `move=right`
+p(right)=0.945; fixed build `move=left` p(left)=0.648. The sentence moves the
+distribution live, exactly as it did on L2. All logged firings on that floor in
+the fixed archive are ARGMAX left (0.65-0.70). The level still fails, and the
+trace says why:
+
+Fixed-build s3 trace, decisions 28-40: the cat complies, walks left off the end
+at x=247 - and the NEXT decision finds it at (242.25,**108**) on
+`floor(193..245@108)`, the floor ABOVE. It ping-pongs 108<->125 until it falls at
+mf 399 and dies one frame before gem_a's deadline (400). `arc.simulate` confirms
+the up-snap: held-left from (247.5,125) mf 309 lands at (242.3,**108**). The
+game's snap (full cat box vs platform box at dy>=0, `updateCatSprite.ts`) catches
+the upper floor's side as the cat steps off, and teleports it UP.
+
+**So the EXIT_FACT sentence is FALSE at this state**: "the shortest way down to it
+is off the left end" - the left end snaps up, it is not a way down at all. The
+cause is the predicate's descent landings: `descentPoints`' `lands` keys come from
+the `landingsFrom` envelope, which lists the DOWNWARD landings (255..307@209,
+220..272@231, 173..225@243) and misses the upward side-snap onto
+`floor(193..245@108)`. exitDirection then routes d=2 through floors the cat can
+never land on. Fix direction (supervisor-approved, not yet built): take descent
+landings from `arc.simulate` (the held-side walk-off from catX, plus the
+release-at-edge drop), the same source the jump routes already use - so a descent
+that snaps up is not counted as a way down. This may also touch L4, whose loop
+floor has the same up-floor-adjacent geometry.
+
+Simulator caveat found on the way: `simulate(12, 252.75, 125, 0, 18, 'left', 309,
+{grounded:true})` returns landed at (249.3,125) - re-snapped to the cat's OWN
+floor mid-walk-off - while the live game reached the 108 floor from that exact
+state. The 1px column convention (`hi + 1 > box.left`) against the own floor's
+left edge needs checking before the descent-landing fix is trusted; the same
+convention is documented as decisive in `reachability.landingsFrom`'s comment.
+
+DeathLog (archive `deathLog`, the authoritative record): L12 s3 8 entries, s4 7
+entries - all "fell out of bounds or was hit by the laser" with action left/right
+at the pacing floor, plus one unwinnable reset each ("1 collected + 1 alive
+cannot reach 3"). L12 is not a burn-loss: each life paces until the closing laser
+reaches the floor. L10 s3/s4: NO unwinnable resets and NO burns - gem_c (287,68,
+deadline 335) is alive at every run end; deaths reset mf before it can burn. L10
+is a pure never-collected failure. (`experiments/burn_context.cjs` keeps the
+per-run context; `deathLog` is the authoritative source for deaths.)
+
+## L12 up-snap: exitDirection v2 (2026-10-10, `EXIT_FACT=2`, not shipped)
+
+The live flip at step 304 sent the cat left off `floor(247..299@125)` and the game
+SNAPPED IT UP to `floor(193..245@108)` - the EXIT_FACT sentence ("the shortest way
+down is off the left end") was false there. Ground truth on how step-offs really land
+(Clef's L2 CLEAR archive, `out/clef_baseline/run_level_2_clef.json`): the cat steps
+off the left edge holding left (76.75 -> airborne 66.25), then STEERS RIGHT mid-fall
+(step 69) and lands at 99.5 on `floor(84..136@240)` - the envelope's "steer to land"
+claim is real and is produced by a mid-air reversal.
+
+v2 computes descent landings with `survival.landingPlatforms` (committed side-hold
+from just past the edge, then free steering - the same bounds `isFatal` uses). The
+edge x is computed, not hand-derived: step outward 0.25px from the edge until
+`platformKeyUnder` stops returning the cat's floor. Answers on L12 step 304 state:
+the left step-off's ONLY landing is the up-snap floor(193..245@108) (free steering
+included); the right step-off dies. v2 also fires only when every min-route landing
+is strictly BELOW the cat's floor (the sentence says "down"). Effect: the L12
+up-snap firings (steps 262/268/304) go silent (`noDownExits`); the remaining L12
+firings (steps 220/232/244, cat right above gem_a) claim the right end, whose
+landings include the holder - a true claim.
+
+Census, both versions, 396 archives / 73,505 decisions (per-endpoint table fixed:
+it used to merge archives sharing level+outcome under the first-seen endpoint):
+
+```
+v1 (live, envelope): fired 4226; Flash 1021/11648 (8.8%) comply 18.2%;
+  EXIT archives 786/6658 (11.8%) comply 52.8%; clef 1665/37552 (4.4%) comply 34.3%
+v2 (landingPlatforms + down-filter): fired 2622 (+ noDownExits 6090);
+  Flash 813/11648 (7.0%) comply 19.6%; EXIT archives 513/6447 (8.0%) comply 55.8%
+```
+
+The L2 assert state fires `D=left` identically in both versions (routes byte-equal).
+v1 stays the live `EXIT_FACT=1` (it is the version proven live: L2 5/5, part of the
+L13 wins); v2 is `EXIT_FACT=2`, honest about up-snaps, awaiting a live L2+L12 A/B
+before it can ship. `CENSUS_EXIT_MODE=v2` runs the census against v2.
+
+## L10: the floor(304..356@140) diagnosis (2026-10-10, decisive)
+
+Archives: baseline s1-s4 and fixed-build EXIT s3/s4 (`residency.cjs` + per-life
+deathLog split). EXIT s3/s4 are decision-identical to baseline s3/s4 - EXIT_FACT
+is silent on L10 (grounded-only, and the objective is above). All deaths in every
+run are "fell out of bounds or was hit by the laser" (17 per failing run); no
+unwinnable resets: gem_c's deadline is mf 335 (gem_b 450, gem_a 610) and lives
+end at mf <= 218, so **gem_c never burns - L10 is not a clock problem**. s1
+CLEARED (96 decisions, 6 deaths, portal at mf 195); s2-s4 peak at gc2.
+
+**The route.** gem_c(287,68) floats (`platformHolding` = null). The ONLY touch
+jump is **jump_left from floor(304..356@140)**: `arc.simulate` touches the gem
+box from every x on that floor (f 11-17) and lands back on floor(212..264@150).
+s1's winning collection matches the sim exactly: jump_left from (323,140) ->
+collected mf 148, recorded at (261.75,150) = the sim's landing. The arrival is
+**jump_right from the right end of floor(212..264@150)**; the arc side-snaps onto
+@140 at exactly (323,140) in all three seeds that landed it (s1's win, s4 twice).
+
+**The model already aims gem_c.** First objective is gem_c in 34 of 36 lives, and
+URGENCY (DESTROYED FIRST) annotates gem_c on 8/8 spawn-life decisions
+(`l13_urgency_gate.cjs 48 10`) - ordering is not the problem, execution is.
+
+**Two distinct failure modes, one lucky win:**
+- **s3: mid-air steering abandons the landing (6/6 attempts).** The jump_right arc
+  is on track for the tower, but a mid-air decision at the apex - cat (309,117.6)
+  dy +4, gem_c 22px to the LEFT and far above - answers `left`, the cat slides
+  off the towers left edge (@140 and @90 both start at x=304) and dies. s3 has
+  ZERO grounded visits to @140 or @90. Same family as the L13 bounce: steering
+  toward the gem's horizontal bearing while airborne.
+- **s4: right floor, wrong jump (2/2 landings).** s4 landed on @140 twice (same
+  (323,140)) and answered `left` both times - walking off instead of the jump_left
+  that touches the gem. One of the two had objective gem_c. The winning move was
+  on the menu: s1 at the identical state answered jump_left with p=0.81.
+- **s1's win had no mid-air decision inside the arc** (37 steps between the jump
+  and the landing - timing luck), landed @140, and took the jump_left.
+
+**Why the rejected airborne predicates would not have helped here.** At the s3
+apex state the needed fact is "holding left DIES" - but right and none tie (both
+land on the tower), so the strict-minimum `airRoute` and the unique-survivor
+`airSurvival` both stay silent. The s4 state needs a grounded jump fact (jump_left
+from @140 touches gem_c) - JUMP_FACTS territory, not airborne. No prompt-shape
+lever proposed from this census; the two failure modes are different and each
+needs its own measured fact.
+
+**NEG_HOLD probe on L10 (2026-10-10): heard, no flip.** Correction first: the s3
+apex state (309,117.6) dy+4 does NOT fire NEG_HOLD - holding left AND right both
+die there (d = Infinity, Infinity, 0), so there is no unique bad hold and the
+predicate is silent (`notTwoBest`). The firing L10 state is one decision earlier
+in the same approach: s3 step 143 (309,189.6) dy-2 mf138, where left dies in the
+laser and right/none tie at d=1 - and the model answered the bad hold (left,
+0.971). Probe with NEG_HOLD=1: left 0.971 -> 0.861, none 0.020 -> 0.098 - the
+sentence is heard (delta 0.11) but the argmax does not move. The prior at the
+apex approach is too strong for one appended fact; L10 mode-1 stays open.
+
+## L12 @125 residency: the objective layer keeps the under-floor gem (2026-10-10)
+
+Full print of every grounded decision on `floor(247..299@125)` across the six Flash
+L4-analog archives (baseline s1-s4, EXIT s3/s4), tallied:
+
+- **Objective layer:** `obj=gem_a` in **896 of 982** decisions (91.2%). gem_a
+  (279,169) sits on `floor(255..307@209)` - directly BELOW the pacing floor, its
+  x inside the floor's span. A descent was offered in **982/982** and picked as
+  objective **16 times (1.6%)**.
+- **Move layer:** not a dither - high-confidence oscillation (argmax 0.92-0.96)
+  between x≈258 and x≈291, i.e. around gem_a's x=279, never reaching the edges
+  (247/299). "Head toward gem_a" is satisfied by pacing under it; mf burns
+  207→383 into the closing laser. This is the same objective-layer shape as L4's
+  @93 (gem kept, waypoint refused), with the twist that the gem's horizontal
+  bearing points at the MIDDLE of the floor, so the walk has no productive end.
+- **DESC_ANNOT: 0 fires here.** Both descents claim three landing floors each
+  (envelope: left → @209/@231/@243, right → @165/@209/@231); gem_a's holder @209
+  is among them but never the ONLY one, so the overclaim guard refuses.
+- **EXIT_FACT v1: fires ~28%** of these decisions (173/982 across archives, all
+  `D=left`); v2 fires ~9% (75/982) after the up-snap honesty filter. (An earlier
+  tally in chat said 0 - that call passed undefined objective coords; corrected
+  here.) The v1 firings are the known FALSE ones: the left step-off up-snaps to
+  `floor(193..245@108)` (section above), which is why the live flip ping-pongs
+  108<->125 instead of descending.
+
+The uncovered fact: **objective's holder is below AND its x-span overlaps the
+current floor** - the gem is under the floor, reachable only off an edge, and the
+horizontal bearing is a trap. Census: `experiments/census_below_fact.cjs`.
+
+## EXIT_FACT v1.1: the up-snap correction, now live as EXIT_FACT=1 (2026-10-10)
+
+v1.1 = v1 exactly, minus any descent exit whose EXACT step-off (`arc.simulate`
+held toward the edge from just past it, `grounded:false`) lands on a floor HIGHER
+than the cat's. It exists because v1's envelope misses the up-snap, so on L12
+@125 v1 fired `D=left` on 173/982 decisions where stepping off the left end
+teleports the cat UP to floor(193..245@108) - a false "way down". Checks, all
+pass: the L2 assert state (s1 step 54) still fires `D=left` byte-equal; the L12
+@125 up-snap firings are gone; blast vs v1 (`experiments/blast_exit_v11.cjs`,
+40,849 rebuilt predicate calls over every archived grounded decision):
+
+```
+v1-vs-v1.1 firing diffs 1318, explained by up-snap 1318, per level {"12":1318}
+per level (removed/added/sideChanged): {"12":{"removed":998,"added":320,"sideChanged":0}}
+```
+
+Every other level, including all clearing levels (L2/L5/L8/L9), is byte-identical
+to v1. The 320 ADDITIONS are v1's `exitsAmbiguous` ties collapsing to the one real
+side once the up-snap half is dropped - legitimate but new live behaviour, so v1.1
+gets its own live check: L12 at seeds 3/4/5 (no other regression needed; nothing
+else changed). LIVE RESULT (full stack, seeds 3/4/5): NOT cleared - 2, 1, 1 gems.
+The 320 added firings did not break anything (s3 peaked 2 gems vs 1 at the s3
+baseline) but did not clear the level either: the up-snap correction is honest
+but not sufficient; L12 stays unclosed at every endpoint tried. `EXIT_FACT=1` now selects v1.1; `EXIT_FACT=2` stays v2. The audit
+doc gained site 14 (`exitDirection` v1.1 step-off simulate, line 2049).
+
+## BELOW_FACT census: target under the floor (2026-10-10, `census_below_fact.cjs`, NOT gated)
+
+Predicate: grounded, and the objective's holder (or the live portal) is BELOW the
+cat's floor with the target's x INSIDE the floor's span - only an end leads down.
+41,384 grounded decisions with a gem/portal objective, 346 archives: fires on
+**8,698 (21.0%)** - broad, as expected.
+
+Bar = winners vs losers at firing states (compliance = the move heads to an end
+that leads down; `exitsAmbiguous` = either end, counted compliant):
+
+- **L12: no separation, because L12 has no winners** - Clef fails it too
+  (51.6% fire, 12.2% comply; Flash 52-58% fire, 21-22% comply; NEG build 64%).
+  The pacing floor is a level-wide trap, not a model gap.
+- **L2: no separation** - Flash cleared runs comply 21-46%, failed runs 25%;
+  Clef clears at 14% compliance. Winners do NOT head down more than losers.
+- **L8: reversed** - Clef's cleared runs comply 5.6% vs 30% in its failed runs.
+- **L13: the endgame dither DOES fire** (corrected 2026-10-10 after the
+  supervisor's read). The dither is on `floor(156..208@63)` (gem_c's floor),
+  portal x=180 inside the span - the NEG/s5 and RISE/s5 archives' 5 gc=3 grounded
+  decisions at x 185.5/175/164.5/171.5/182 are exactly the census's 5 NEG/RISE
+  firings (the 206..258@136 floor is a different, older dither). And there IS a
+  winner-vs-loser separation at these states, in the OBJECTIVE layer: the s8
+  WINNER passed through with `obj=descent_right` and committed right at 0.90-0.98
+  (3 decisions), the s5 loser kept `obj=portal` and oscillated (5 decisions,
+  compliance 0%). Caveats that keep the verdict: one winner/loser pair only; the
+  gem levels show no separation (L2) or reversed (L8); and `exitDirection` returns
+  `noHolder` at every portal state (the portal floats, `platformHolding(180,150)`
+  is null) so v1.1 can never speak there - a portal sentence would be new text.
+- descent-as-objective at firing states: **0 everywhere** - same refusal pattern
+  as L4's @93.
+
+EXIT_FACT v1.1 overlap: at firing states v1.1 already speaks or adjudicates on
+30-35% of L12, 32-56% of L2, 54-98% of L8, ~0% of L11/L13 - the one-sided cases
+are its; the BELOW-only remainder is mostly `exitsAmbiguous` (both ends lead
+down) and `sideMatchesDir`. An honest sentence for the remainder exists
+("<target> is directly below this floor; only the left/right/either end leads
+down to it"), but with no winners-vs-losers separation on the gem levels the fact
+is NOT specific enough to gate: it is true at 21% of all decisions and the gem-
+level winners comply no more than the losers. Verdict: censused, NOT gated. The
+one surviving lead inside this shape is the L13 portal endgame specifically (the
+winner picked descent_right, the loser kept portal, and v1.1 is structurally
+silent there via `noHolder`) - a portal-only sentence would be a separate,
+narrowly-targeted probe, not this fact. Script:
+experiments/census_below_fact.cjs.
+
+## L12 @125: the ascent note is NOT the gap-note analogue (2026-10-10)
+
+The @125 pacing text has no gap note (gem_a's x is inside the floor span, so
+`gapMsg` never fires); the only asymmetric side note is the JUMP_FACTS ascent
+note naming two up-left platforms while the objective is 44px below. Census
+(`experiments/census_ascent_note.cjs`, shipped flags, 52,179 grounded decisions):
+the note fires at **19,395 decisions (37.2%)**, of which the objective is below
+the floor at **3,632 (7.0%)** - L12: 1,728 fired / 911 obj-below / firedW 0
+(no L12 winner exists anywhere in the archive). A/B at the two @125 pacing
+decisions (NEG/s5 idx15 chose left, idx16 chose right; baselines REPRODUCED 0.0;
+patched = ascent note removed): **no flip at either state.** idx15: left holds
+argmax (0.474 -> 0.331, jump_left 0.421 -> 0.138); idx16: right holds (0.538 ->
+0.558) and left DROPS when the note is removed (0.291 -> 0.091) - the note was
+slightly helping the left side, the opposite of the L4 gap note's role. The
+@125 coin-flip is not caused by a misleading side note; no gate proposed.
+Scratch: decision_ascent_off_scratch.cjs (untracked).
+
+## L11 @231: the loop is route-vs-bearing, and a graph-verified route clause flips it (2026-10-10, A/B)
+
+Flash's L11 loop (EXIT/s3, 119 grounded @187 + 76 @231 decisions): obj=gem_a
+(180,76, floating; 2 gems already collected). Cycle: @231 jump_right (0.34-0.64,
+bearing "28px right") -> lands @187 x192 (arc.simulate agrees: (192,187)) ->
+@187 walk LEFT (0.62-0.79, bearing "26px left") -> falls off the left edge ->
+@231 -> repeat. Darwin's s2 clear ran the SAME loop for 9 cycles, then escaped
+with jump_left from @231: @211 -> @152 -> @114 -> jump_right collects gem_a
+(read from its log, frames idx 184-190). The reachability graph confirms:
+route @231->@211->@152->@114 (LEFT); @187's only edges are DOWN (@228, @231) -
+it is a dead end for the climb.
+
+What the notes get right (checked, not guessed): the @231 ascent note lists BOTH
+@187 (right) and @211 (left) and both are true FROM THE CAT'S X (arc.simulate:
+jump_left from 148-170 all land @211; jump_right from 151.75 lands @187 - and
+the live jump did land there). The @187 note "No higher platform can be reached
+by a jump from this floor" is TRUE (Darwin's jump_left from @187 lands @231,
+read from its log). So neither note is the L4-type lie; the failure is that
+nothing says WHICH listed floor is the route, and the bearing points at the
+dead end. The objective menu cannot help: at @231 it offers only
+`[gem_a, ascent_right]` (ascent_left is never generated - hopPoints is
+single-hop toward the objective), and gem_a wins 0.977.
+
+A/B (baselines REPRODUCED 0.0; scratch appends one clause to the ascent note,
+both clauses graph-verified): `The shortest route to gem_a leaves this floor by
+jumping LEFT (to x 62..114 at y 211); the floor to the right (x 181..233 at y
+187) does not lead to it.`
+
+```
+idx17 x151.75  jump_right 0.608 -> 0.001 | jump_left 0.011 -> 0.824   FLIP
+idx20 x153.50  jump_right 0.640 -> 0.001 | jump_left 0.023 -> 0.823   FLIP
+idx57 x153.50  jump_right 0.640 -> 0.001 | jump_left 0.023 -> 0.823   FLIP (death-history assumed)
+```
+
+3 of 3 flips, the largest deltas of the session. NOT yet gated: needs the
+supervisor's wording call + a gate that computes both clauses (BFS route side +
+dead-end check) and a census (fires only where the ascent note lists >=2 floors
+AND the route side opposes the bearing - expect rare). Scratch:
+decision_l11_route_scratch.cjs (untracked).
+
+## ROUTE_ASCENT: built, gated off, parked (2026-10-10)
+
+The A/B clause is shipped as `ROUTE_ASCENT=1` (off by default; npm test green,
+audit re-pinned +56). `routeAscentClause` in decision.cjs appends to the ascent
+note, only when: grounded, the objective is a live gem, the note lists >=2
+floors, a forward BFS on the (DIRECTED - the first reverse-BFS draft was wrong,
+A->B means "a jump from A lands on B") floor graph says the shortest route to a
+collector floor (holder or runJumpWindow-collectable) leaves this floor via
+first hops on exactly ONE side, the route's first hop on that side is a listed
+UP floor, and every listed floor on the other side has NO route at all. Wording
+as A/B'd: ` The shortest route to gem_a leaves this floor by jumping LEFT (to x
+62..114 at y 211); the floor to the right (x 181..233 at y 187) does not lead to
+it.` Verified offline at the @231 archetype (fires, byte-matches the probe
+clause) and silent at @187. LEFT TO DO before live: the census (fire rate per
+level x outcome x model + winners-vs-losers compliance at firing states) and
+the blast (pure appends); the probe scratch decision_l11_route_scratch.cjs was
+deleted after recording - rebuild from the gate + --patched if needed.

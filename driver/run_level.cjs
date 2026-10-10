@@ -25,6 +25,9 @@ const CFG = require("./config.cjs");
 const { chromium } = CFG.resolvePlaywright();
 const { makeClient, makeHalogenClient, makeQwenLocalClient, makeHalogenLogprobsClient } = require("./jev.cjs");
 const { decide, layaDecide, halogenDecide } = require("./decision.cjs");
+const { createOscHistory } = require("./decision.cjs");
+const { makeReplayDecideFn } = require("./replay.cjs");
+const path = require("path");
 const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const REACH = require("./reachability.cjs");
@@ -145,6 +148,21 @@ const ENDPOINTS = {
     },
     minIntervalMs: 0,
     decide,
+  },
+  // Offline replay of an archived run (REPLAY_JSON); see replay.cjs.
+  // Mirrored verbatim in run_full.cjs: test_runner_parity.cjs asserts the
+  // ENDPOINTS blocks are textually identical across both runners.
+  replay: {
+    kind: "jev",
+    baseUrl: "replay:",
+    path: "/v1/systemone",
+    get model() {
+      return process.env.REPLAY_JSON ? "replay:" + path.basename(process.env.REPLAY_JSON) : "replay";
+    },
+    minIntervalMs: 0,
+    get decide() {
+      return makeReplayDecideFn(decide);
+    },
   },
   // halogen-flash-server 0.13.8 scores a label from top_logprobs in one forward
   // pass, so this endpoint now runs the SAME policy as every other classifier
@@ -308,6 +326,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
     });
     // Every reset starts a fresh attempt, so revisit evidence must not carry over.
     visitCounts.clear();
+    if (oscHistory) oscHistory.clear();
     visitWin.length = 0;
     decideMemo.lockedObjective = null;
     lastGroundedKey = null;
@@ -350,6 +369,9 @@ const r2 = (n) => Math.round(n * 100) / 100;
   // reset, because a livelock is per-attempt: carrying counts across a death
   // would make a fresh attempt start already "stuck" at its own spawn point.
   const visitCounts = new Map();
+  // ESC_FIX: per-attempt 2-key oscillation memory (see decision.cjs). Null unless
+  // the gate is on, so the default build is byte-identical.
+  const oscHistory = process.env.ESC_FIX === "1" ? createOscHistory() : null;
   // Carries the objective across a jump arc. decide() re-asks the objective only
   // while the cat is grounded: the airborne prompt loses the reachability
   // annotations (platformKeyUnder stops resolving a few frames into a jump), so
@@ -427,6 +449,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
     deathLog.push({ wallMs: deathWallMs, step: steps, key, action, cause });
     while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
     visitCounts.clear();
+    if (oscHistory) oscHistory.clear();
     visitWin.length = 0;
     decideMemo.lockedObjective = null;
     lastGroundedKey = null;
@@ -601,7 +624,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
       if (visitWin.length > VISIT_WINDOW) visitWin.shift();
       visitCounts.clear();
       for (const k of visitWin) visitCounts.set(k, (visitCounts.get(k) || 0) + 1);
-      d = await decideFn(client, s, levelGems, (m) => console.log("      " + m), deathHistory, visitCounts, decideMemo);
+      d = await decideFn(client, s, levelGems, (m) => console.log("      " + m), deathHistory, visitCounts, decideMemo, oscHistory);
     } catch (e) {
       if (e && e.name === "HalogenParseError") {
         const key = `${Math.round(s.cat.x / 10) * 10},${Math.round(s.cat.y / 10) * 10}`;
@@ -633,7 +656,10 @@ const r2 = (n) => Math.round(n * 100) / 100;
         // animations), so it is only knowable at runtime -- bridge.ts:76 reports it.
         // Every grounded note that calls arc.simulate passes it, so a wrong value
         // shifts the grounded prompt. Log it rather than assume 18.
-        cat: { x: r2(s.cat.x), y: r2(s.cat.y), dy: r2(s.cat.dy), h: r2(s.cat.height) },
+        // dx is logged because a walking cat carries dx=±walk speed and the move
+        // prompt's momentum facts read it; without it an archived state cannot be
+        // byte-rebuilt for an offline probe.
+        cat: { x: r2(s.cat.x), y: r2(s.cat.y), dx: r2(s.cat.dx), dy: r2(s.cat.dy), h: r2(s.cat.height) },
       onPlatform: s.onPlatform,
       movingFrames: r2(movingFrames(s)),
       gemsCollected: s.gemsCollected,

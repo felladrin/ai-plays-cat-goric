@@ -207,3 +207,210 @@ loop needs while executing correctly); the MOVE for gem_c flips from the trap
 side to the productive side, right 0.514 -> left 0.575. That is the loop's exact
 failure decision reversed at the archetype state. Awaiting supervisor live runs
 (L4 + L8 regression, two seeds each).
+
+## The loop vs the existing airborne facts (2026-10-10, `census_l4_loop_facts.cjs`)
+
+Question: do NEG_HOLD or REACH_FACT speak at the loop decisions, and does the
+model take the bad hold? Archives: base s1-s4 + EXIT s3/s4, obj gem_c.
+
+* **Loop-arc airborne** (y 93..171, x 195..320): 124 decisions. **NEG_HOLD fires
+  13, bad=left(dies in the laser) in all 13, and the model took the bad hold
+  13/13.** REACH_FACT fires **0** - correctly, no hold reaches gem_c from the arc.
+* **But flipping mid-arc does not break the loop.** `arc.simulate` from the firing
+  state (269.75,120.6) dy-2 mf110: hold left -> laser @(210.3,290.6); hold right
+  -> **lands back on the LOWER floor(263..315@171)** @(308.3,171); hold none ->
+  same lower floor @(269.8,171). Right or none just returns the cat to the floor
+  it jumps_left from - the loop is intact either way. The mid-arc `left` IS the
+  loop's own return mechanism (the game re-decides every 6 frames, so the apex
+  snap catches the cat before the laser; TOOK-BAD here is not a death sentence).
+* **The loop's real decisions are GROUNDED**: loop floor(199..251@93) 537
+  decisions (move=right 300), lower floor(263..215@171) 147 (move=jump_left 82).
+  Both airborne facts are silent on grounded states by construction.
+
+**Verdict: neither existing fact can break the L4 loop.** The fact the loop needs
+is the grounded trap fact - "the right descent is not a descent: jump_left from
+floor(263..315@171) apex-snaps back to floor(199..251@93); the left edge of this
+floor is the way down to gem_c" - which is the DESC_HONEST shape, measured and
+REJECTED (L8 regressed with it, dead-ends.md). EXIT_FACT cannot say it either: it
+is silenced by `sideMatchesDir` (the bearing to gem_c already matches the left
+route), and the model walks right anyway - the loop is the model ignoring its own
+correct bearing, which no bearing-shaped fact can fix.
+
+## The jump-landing note: already live, and its L4 window IS the loop (2026-10-10)
+
+The same-floor jump-landing note is ALREADY ENABLED in the uncommitted tree
+(un-gated; `test_objective_lock` is the red-by-design gate on it). Census
+(`census_jump_landing.cjs`, 16 archives L1-L4):
+
+* **L1/L2/L3: ZERO same-floor firings in actual play** across every archive,
+  clearing and failing. The historical L2 cost (48 firings -> fail) does not
+  reproduce under the current build (holder-guard + GOALS_ONLY/ROUTE_FIRST menus).
+  The test's only sweep violation is the synthetic L1 (50,230) gem_b state - a
+  position no archived run ever visits. The dead-ends condition "keeps level 2's
+  firings at zero" is met in play; only the synthetic sweep blocks it.
+* **L4: the note fires 3-4x per run at the trap state** (e.g. s4 step 142,
+  (289,171) obj gem_c): "A jump from x 289 holding left reaches no platform: the
+  arc passes below every platform and the cat drops to the bottom laser. A jump
+  from x 263..284 on this same floor reaches a platform from which gem_c can
+  still be reached... walk left to around x 284, then jump left there."
+
+**The window claim is an envelope artifact.** Exact `arc.simulate` at the loop
+clock (mf 97), x 263..284 step 1: **held jump_left lands on floor(199..251@93 -
+the loop floor - for EVERY x in the window**; `jump` lands back on @171; two-phase
+probes (jump_left k frames, then none/right, k=6..18, dy captured via onFrame)
+land on @93, @171, or the laser - **no hold or release combination from any x in
+the window lands on gem_c's floor(156..208@241)**. The note's `keeps()` test
+accepts @93 because the graph says @93 reaches gem_c (true - via its LEFT EDGE,
+the descent the model never takes). So the note's advice at the trap walks the
+cat to 284, jumps left, and apex-snaps back to @93: **the window IS the loop**.
+That is why the loop persisted in archives where the note fired.
+
+**Consequence.** The fact the loop needs is not on @171 at all - it is on @93:
+"walking left off this floor lands on the platform that holds gem_c" (the
+left-edge descent, landing 156..208@241, is the only productive exit and the
+model walks right 300/537 there). EXIT_FACT is silent on @93 by `sideMatchesDir`
+(bearing already matches left). A positive same-floor descent-to-holder fact on
+@93 is the untried shape; the @171 note needs no change (it is true, just
+loop-preserving). Do NOT re-gate or re-probe the @171 note: a flip there lands
+on @93 either way.
+
+## Objective-layer census #2: the descent waypoint is offered 225/225 and never picked (2026-10-10)
+
+Clef's mechanism at @93 is the OBJECTIVE pick: its objective while walking left
+is `descent_left` (the waypoint), not gem_c. Flash: the descent_* entries were on
+the objective menu at @93 in **225/225 grounded decisions (base s1 + EXIT s3) and
+picked 0 times.** The exact menu at (247,93) gc1 (EXIT s3 step 295):
+
+```
+- left descent point (x 199): step off the left end of your floor to descend - lands on x 156..208 at y 241; nearest closing laser 58px away (top side).
+- gem_c at (182,226): straight-line 148px (65px left, 133px down); nearest closing laser 50px away (bottom side).
+- right descent point (x 251): step off the right end of your floor to descend - lands on x 263..315 at y 171 or x 156..208 at y 241; nearest closing laser 58px away (top side).
+```
+
+What differs from gem_c's entry: the left descent already names the landing
+(156..208@241 = gem_c's floor) but NOT that gem_c sits there; gem_c's entry gives
+a straight-line distance the cat cannot walk (the gem is below the floor). The
+right descent ALSO advertises the 241 landing (envelope over-claim - the exact
+step-off from x 251 lands on @171; the 241 claim needs the @171 jump_left, which
+is the loop). So the menu as written gives gem_c the only "pointing" text and
+both descents equal landing claims - consistent with gem_c winning 225/225.
+
+Prior art (decision.cjs comment at descentPoints, after landOn): landing-gem
+annotation was tried on the 27B classifier - "still picks the right descent 24 of
+24 menu orderings" on L4-with-gem_a, and on L4's START floor it INVERTED a
+working decision (advertised two gems against the one-way-loses-gem_a warning).
+Not automatically dead for Flash (different model, different floor, different
+state), and the probe has now run. Scratch copy `decision_annot_scratch.cjs`
+appends " (gem_c is there)" to a descent label iff EVERY platform the step-off can
+land on is that live gem's holder (the right descent at @93 claims @171 OR @241, so
+it gets no note - the overclaim guard). Probe at EXIT s3 L4, baselines REPRODUCED
+0.0 with the EXIT build flags: idx25 gap 0.61->0.12 no flip; idx33, 50, 200 FLIP the
+objective to descent_left (deltas 0.29-0.32); idx300 no flip (0.167). 3 of 5 probed
+@93 states flip. The 27B prior art (decision.cjs comment near descentPoints) was
+no-move 24/24 - Flash is different.
+
+## DESC_ANNOT built and blasted (2026-10-10)
+
+The probe's annotation is now gated in `decision.cjs` (`DESC_ANNOT=1`, off by
+default): a descent label gets ` (gem_x is there)` only when EVERY platform the
+step-off can land on is that live gem's holder floor (the envelope-overclaim guard;
+"any live gem" is the right semantics because the objective menu is built before an
+objective is chosen). The annotation rides the descent label into the objective
+criterion text.
+
+Blast (`experiments/blast_desc_annot.cjs`, objective-call state + criteria, old =
+pre-gate copy vs new, over every archived decision under `out/`):
+
+- gate unset: **compared 80,000, diffs 0** - prompts byte-identical.
+- `DESC_ANNOT=1`: **diffs 13,711, all 13,711 pure descent-crit additions** (menu
+  unchanged, every diff is the annotation insertion). Per level: **L2 4,452,
+  L4 4,346, L6 401, L7 62, L8 3,802, L11 648** (all endpoints pooled).
+
+The radius is not L4-only: any floor whose descent lands exclusively on a gem's
+floor fires, and L2/L8 carry that shape heavily - so the live test must include the
+L2/L5/L8/L13 regression, not just L4. The gate shifted `decision.cjs` line numbers
+by +16; `docs/simulate-clock-audit.md` pins re-pinned (exitDirection 2026,
+reachHolds 2078, negHoldTargets 2120, negHold 2143). `npm test`: green except the
+expected-red `test_objective_lock`.
+
+## The one-option menu at x=250.5 is a CORRECT prune (2026-10-10)
+
+Base s1 idx110 (step 1052, cat (250.5,93) on floor(199..251@93), mf=361, gc=1):
+`moveProbs {"right":1}` looked like the L13 portal-prune bug's sibling, but it is
+not. At mf=361 the safe-rect top is 73.95 and the cat's head is at 75.00 - 1.05px
+of clearance, closing 0.2/frame. `isFatal(left)=isFatal(none)=true` (anything that
+stays on @93 is cut by the top laser within ~5 committed frames), `isFatal(right)=
+false` (right steps off the 251 edge and falls to a lower floor). The prune deleted
+only the moves that truly die; the model had no choice to refuse. Verified by
+rebuilding the snap from the archive and calling `survival.isFatal` per action.
+
+## The gap note is what points Flash right at @93 (2026-10-10, A/B probe)
+
+The move state at the dither states carries an asymmetry: the LEFT end arrives
+with a warning (`The gap to the LEFT is 52px wide; walking cannot cross it, only
+a jump can.`) while the RIGHT end arrives with two landing options and no
+warning. The gap note fires because gem_c (182,226) is horizontally beyond the
+left end of floor(199..251@93) - but gem_c is reached by DROPPING off that end,
+not by crossing the gap, so the warning argues against the productive move.
+
+A/B at four Flash s1 @93 obj=gem_c decisions where the archived choice was
+`right` (all baselines REPRODUCED 0.0; scratch arms = `--patched` copies,
+gap_off removes the gap sentences, gap_ext appends to the gap sentence
+`; stepping off this end drops onto <that end's landing list>`):
+
+```
+idx  x       as-is (arch)        gap_off             gap_ext           flip
+34   234.75  L 0.262 R 0.738    L 0.924 R 0.076    L 0.681 R 0.319   both FLIP -> left
+24   238.25  L 0.328 R 0.672    L 0.931 R 0.069    L 0.777 R 0.223   both FLIP -> left
+30   234.75  L 0.302 R 0.698    L 0.891 R 0.109    L 0.742 R 0.258   both FLIP -> left
+39   245.25  L 0.495 R 0.505    L 0.952 R 0.048    L 0.856 R 0.144   both FLIP -> left
+```
+
+8 of 8 arms flip right->left; gap_off is decisive (left 0.89-0.95), gap_ext
+strong (left 0.68-0.86). The right end's two-landing text (`x 263..315 at y 171;
+x 156..208 at y 241`) is the envelope overclaim DESC_HONEST already measured and
+rejected - deliberately NOT touched here. Next: census when the gap note fires
+while the objective is reached by stepping off that same edge
+(experiments/census_gap_note.cjs).
+
+## GAP_DROP: the gap note, completed instead of removed (2026-10-10, gated)
+
+`GAP_DROP=1` (off by default) appends to the gap sentence, when it fires on an
+edge, `; stepping off this end drops onto <lands>. ` - but ONLY when EVERY
+landing off that edge (dropFrom lands, own floor excluded by construction) is the
+objective's own holder floor (x-containment + the vertical-overlap rule). The
+narrow form cannot fire where crossing the gap really is the route: if any
+landing is not the objective's floor, the warning may be doing real work. The
+extended wording was chosen over removal because it stays true and still flips
+(see the A/B table above: 8 of 8 arms flip right->left).
+
+Blast + census in one pass (`experiments/blast_gap_drop.cjs`, move-state text,
+gate off vs on per decision, pure-insertion verification by removing the exact
+clause and requiring byte equality): **1,603 firings of 51,942 grounded
+decisions (3.1%), ALL on L4** (firedW 41 - Clef's clearing archives, whose gem_c
+states already walk left - firedL 1,562). **Every other level is byte-identical
+gate-on**: the all-landings-holder condition is exactly the L4 @93 gem_c shape.
+Non-pure diffs: 0. Gate-off is byte-identical to the shipped text (env guard;
+spot-checked against the archived probe text at idx34; npm test green, audit
+re-pinned +24).
+
+Live test (2026-10-10, best build + GAP_DROP=1): **L4 CLEARED at s3 (5 deaths,
+86 decisions, 829 steps) and s4 (1 death, 49 decisions, 444 steps)** - Flash had
+never held more than 1 gem on L4 at any seed before this gate. **FINAL: 5 of 5**
+(s3 5 deaths, s4 1, s5 3, s6 1, s7 3); the full ladder with the whole stack follows. No regression needed on other
+levels (the blast fires nowhere else).
+
+## L4 in the ladder loops on a DIFFERENT floor than isolated (2026-10-10)
+
+gapstack_s9 (cleared L0-L3, failed L4: 10 deaths, 2 gems, 324 decisions): the
+residency is y=180 (96 decisions) and y=241 (94) - NOT the @93 dither that
+GAP_DROP fixed in isolation (22 decisions at @93). gem_c (182,226) sits on
+floor(156..208@241); the ladder loop lives around the gem_c floor and @180, i.e.
+the ladder run never reaches the @93 state where GAP_DROP fires - the isolated
+fix and the ladder failure are different states. Measuring the death-history
+hypothesis there is BLOCKED on reconstruction: the exact live prompt needs the
+death lines, which carry the launch ACTION, and the ladder archive's deathLog
+records no action (only reason + pre/post snapshots); airborne entries also lack
+cat.dy. The only exact path is replay.cjs (in-process replay with the real
+recorder) - expensive but correct. Next step belongs there, not at a rebuilt
+prompt.

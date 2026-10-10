@@ -1,0 +1,62 @@
+{
+  "error": "empty objective menu: no gem, descent or ascent point was offered. state: {\"level\":6,\"cat\":{\"x\":302.25,\"y\":132.80000000000004,\"dy\":2.8000000000000016,\"h\":18},\"onPlatform\":false,\"movingFrames\":273.00000000000125,\"gemsCollected\":2,\"gemPositions\":[{\"x\":135,\"y\":143}]}",
+  "snap": {
+    "level": 6,
+    "gemsCollected": 2,
+    "aliveGems": 1,
+    "gemPositions": [
+      {
+        "x": 135,
+        "y": 143
+      }
+    ],
+    "moving": true,
+    "onPlatform": false,
+    "cat": {
+      "x": 302.25,
+      "y": 132.80000000000004,
+      "dx": 1.75,
+      "dy": 2.8000000000000016,
+      "height": 18
+    },
+    "drones": {
+      "tl": {
+        "x": 0,
+        "y": 55.60000000000025
+      },
+      "tr": {
+        "x": 304.4000000000031,
+        "y": 0
+      },
+      "bl": {
+        "x": 55.60000000000025,
+        "y": 310
+      },
+      "br": {
+        "x": 360,
+        "y": 255.4000000000031
+      }
+    },
+    "lastEvent": {
+      "type": "none",
+      "fromLevel": 6,
+      "toLevel": 6
+    },
+    "deathCount": 0
+  },
+  "levelGems": [
+    [
+      135,
+      143
+    ],
+    [
+      225,
+      181
+    ],
+    [
+      221,
+      108
+    ]
+  ],
+  "deathHistory": []
+}

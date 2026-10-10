@@ -166,3 +166,83 @@ and the probe stay for the record. Verified after removal: `npm test` green
 off shows **0 state-text diffs** over 71,062 rebuilt decisions (the 978 menu
 diffs are the ungated routeBlocked fix, L4 850 + L6 128, counted separately by
 `experiments/blast_gates_head.cjs`).
+
+## AIR_ROUTE: airborne route and survival facts (2026-10-10, measured, rejected, never gated)
+
+The airborne twin of EXIT_FACT, two variants, censused offline (405 archives,
+29,631 airborne decisions) before any live run, both rejected by the supervisor
+on the EXIT_FACT bar (rare firing + high winner compliance).
+
+- Broad `airRoute` (decision.cjs): per-hold remaining route length over the exact
+  held arcs (0 = collect or holder floor, else BFS hops, Infinity = death); fire
+  iff one strict minimum. Fires on 31.8% of airborne decisions; L13 climb
+  compliance winners 32-36% vs losers 25-38% - no gap.
+- Narrow `airSurvival`: fire iff exactly one hold survives when held to the end
+  (live-portal touch = survival, same rule as the portal prune). Fires on 29.9%;
+  winners 38.9-39.3% vs losers 32.8-44.4% - no gap, not rare.
+
+The motivating state is real (L13 s5 step 116: left and right both die in the
+laser when held, only `none` lands, the model answered left, and `isFatal` does
+not prune left because it allows free steering after the committed frames) - but
+the fact fires on 3 in 10 airborne decisions everywhere. The predicates live ONLY in the census
+(`experiments/census_air_route.cjs`, self-contained); they were removed from
+`decision.cjs` and no gate was ever wired into the prompt, so shipped prompts
+are byte-identical.
+
+## GROUNDED_ROUTE: the grounded move fact (2026-10-10, censused, REJECTED, never gated)
+
+The grounded sibling of NEG_HOLD, motivated by L11: on `floor(145..197@231)` the
+bearing to floating gem_a pulls right/jump_right (back UP to dist 4) while the
+productive route continues LEFT. `groundedMoveFact`
+(`experiments/census_grounded_route.cjs`, predicate local - never entered
+decision.cjs): score each of the five grounded moves by the g4 route length from
+its HELD landing to the gem's collector set (0 if the arc itself collects);
+scope = grounded + objective at or above the cat's y, the exact complement of
+EXIT_FACT so the two cannot double-count. Shapes: A = exactly one move strictly
+worst, other four equal-best (the NEG_HOLD shape); B = mirror; rel = the other
+four need not tie.
+
+Census (77,749 decisions, 37,103 in scope): A fires 2,021 (follow 68.5%), Arel
+8,185 (follow 82.0%), B 800 (61.8%), Brel 6,613 (40.2%). On L11 Flash: A fires
+on 37% of in-scope decisions and the model ALREADY avoids the worst move 82% of
+the time - no headroom, and the residual 18% is the apex-prior stubbornness the
+NEG_HOLD probe showed a named fact does not flip. B never fires on L11 (the
+other four never tie). Brel fires on 18.7% with 2.8% follow - the unique-best
+move is jump_left on the loop floor and the model takes it almost never - but
+that is the positive-route-fact family (KEEP_HOLD silent at its archetype,
+FLOAT_EXIT rejected), and the negative phrasing is the one with a live flip;
+per supervisor the census stops here. No gate built; decision.cjs untouched.
+
+Census bug found on the way: archives carry no `cleared` field (isolated clears
+are `sawAdvance`, wins are `won`), so every `:cleared` split in
+`census_grounded_route.cjs`, `census_neg_hold.cjs` and `census_exit_tie.cjs`
+keyed everything as failed. Fixed in all three; the NEG_HOLD and L11 numbers
+above are per-endpoint:level and unaffected, but any earlier "cleared vs failed"
+comparison from those two scripts compared failed runs against themselves.
+
+## PORTAL_REACH: endgame portal fact (2026-10-10, censused, not gated)
+
+Grounded + obj portal + gc3, "stepping off this end reaches the portal" (oracle:
+canStillLand with a hits Set so only a portal-box touch returns true). Fires on
+1,323 of 1,349 portal-endgame decisions (98%) and on every clearing run at full
+rate - true but not specific; the dithering cat is not missing this
+information. Full writeup: flash-l13-analysis.md, "The endgame dither is real".
+Predicate lives in experiments/census_portal_reach.cjs only.
+
+## DESC_ANNOT: naming the gem on a descent entry (2026-10-10, measured, rejected, code removed)
+
+`DESC_ANNOT=1` appended " (gem_x is there)" to a descent objective entry when
+EVERY platform that step-off can land on is that live gem's holder floor (the
+envelope-overclaim guard; sibling of DESC_HONEST above, but a pure text addition
+- blast: 0 diffs gate off over 80,000 decisions; 13,711 gate on, all pure
+descent-crit additions, per level L2 4,452 / L4 4,346 / L6 401 / L7 62 / L8
+3,802 / L11 648). The probe was promising: at the L4 @93 trap states, where the
+model had kept gem_c as objective 487/491 times, the annotation flipped the
+objective to descent_left at 3 of 5 probed states (baselines reproduced 0.0).
+Live on Flash L4 full stack, same seeds: **0 of 3 cleared** - s3 28 deaths (vs
+18 without), s4 18 (vs ~20), s5 24 (vs 15); deaths went UP at s3/s5. The probe
+flips did not compose into a cleared level: naming the gem does not break the
+apex-snap loop, and the added text perturbs other decisions on the clearing
+levels' prompts too. Gate removed from decision.cjs; the blast script stays at
+experiments/blast_desc_annot.cjs (needs a `git show` copy at
+decision_old_scratch.cjs to re-run). Full account: flash-l4-analysis.md.

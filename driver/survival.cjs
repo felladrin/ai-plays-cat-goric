@@ -23,6 +23,15 @@ const { AIR_REDECIDE_FRAMES, WALK_FRAMES } = require("./cadence.cjs");
 
 const MAX_FRAMES = 240;
 
+// getPortalCollisionObject: 32x32 centred on the portal sprite (180,150), and
+// shouldCheckCollisionBetweenCatAndPortal: live only at gemsCollected >= 3.
+// Touching it ENDS THE LEVEL AS A WIN, so a trajectory that crosses the portal
+// box is not certain death no matter where the platforms are (L13 s4 steps
+// 2144/2162: the winning hold was pruned; docs/flash-l13-analysis.md).
+const PORTAL_BOX = { x0: 180 - 16, x1: 180 + 16, y0: 150 - 16, y1: 150 + 16 };
+const overlapsPortal = (x, y, h) =>
+  x < PORTAL_BOX.x1 && x + 1 > PORTAL_BOX.x0 && y - h < PORTAL_BOX.y1 && y > PORTAL_BOX.y0;
+
 function bounds(mf) {
   const d = CFG.droneSpeed * mf + CFG.minLaserHalfSize;
   return { top: 1 + d, bottom: CFG.maximumLaserY - d, left: 1 + d, right: 359 - d };
@@ -45,17 +54,21 @@ function stepFrame(plats, s, h, dir, wantJump) {
   y += dy;
   if (dx !== 0 || dy !== 0) mf += 1;
   const b = bounds(mf);
-  if (y >= b.bottom || y - h <= b.top || x <= b.left || x >= b.right) return { dead: true };
+  if (y >= b.bottom || y - h <= b.top || x <= b.left || x >= b.right) return { dead: true, x, y, dy, mf };
   return { x, y, dy, grounded, mf, jumped };
 }
 
-// From an airborne state with free steering: can any trajectory land?
+// From an airborne state with free steering: can any trajectory land? (Or, with
+// `portal`, cross the portal box - a win is survival too.)
 // With `hits`, keeps going and collects every platform some trajectory lands on.
 // `carry` is the direction still applied on the first free frame (input lag).
-function canStillLand(plats, s, h, hits, carry) {
+function canStillLand(plats, s, h, hits, carry, portal) {
   let { y, dy, mf } = s;
   let lo = s.x, hi = s.x;
   for (let f = 1; f <= MAX_FRAMES; f++) {
+    // The interval [lo,hi] is every x the cat can occupy at this height, so the
+    // portal test is the same optimistic interval overlap as the landing test.
+    if (portal && hi + 1 > PORTAL_BOX.x0 && lo < PORTAL_BOX.x1 && y - h < PORTAL_BOX.y1 && y > PORTAL_BOX.y0) return true;
     if (dy >= 0) {
       for (const p of plats) {
         if (hi + 1 > p.left && lo < p.right && y - h < p.bot && y > p.top) {
@@ -106,12 +119,14 @@ function isFatal(snap, action, K = WALK_FRAMES) {
   // previous move's direction when the runner knows it.
   const carried = snap.prevMove === undefined ? dir
     : /left/.test(snap.prevMove) ? "left" : /right/.test(snap.prevMove) ? "right" : null;
+  const portalLive = snap.gemsCollected >= 3;
   for (let f = 0; f < frames; f++) {
     s = stepFrame(plats, s, h, f === 0 ? carried : dir, wantJump);
+    if (portalLive && overlapsPortal(s.x, s.y, h)) return false;
     if (s.dead) return true;
   }
   if (s.grounded) return false;
-  return !canStillLand(plats, s, h, undefined, dir);
+  return !canStillLand(plats, s, h, undefined, dir, portalLive);
 }
 
 // The platforms an airborne action can still end on: the action for the

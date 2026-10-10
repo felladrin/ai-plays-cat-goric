@@ -121,7 +121,7 @@ assert(d.halogenDecide.length === 5, `halogenDecide arity is ${d.halogenDecide.l
 // jump arc. The runners pass the extra args to all three; the other two ignore
 // them, which is safe only because the FIRST five stay aligned. That alignment
 // is what these three asserts protect.
-assert(d.decide.length === 7, `decide arity is ${d.decide.length}, expected 7 (deathHistory, visitCounts, memo)`);
+assert(d.decide.length === 8, `decide arity is ${d.decide.length}, expected 8 (deathHistory, visitCounts, memo, oscHistory)`);
 
 const posKey10 = (x, y) => `${Math.round(x / 10) * 10},${Math.round(y / 10) * 10}`;
 
@@ -146,7 +146,7 @@ const need = [
   "DEATH_HISTORY_STORE",
   "recordDeath",
   "deathHistory.length = 0", // per-level reset on transition
-  "decideFn(client, s, levelGems, () => {}, deathHistory, visitCounts, decideMemo)", // passed to the model
+  "decideFn(client, s, levelGems, () => {}, deathHistory, visitCounts, decideMemo, oscHistory)", // passed to the model
   "decideMemo.lockedObjective = null", // the objective lock is dropped on reset
 ];
 for (const needle of need) {
@@ -599,14 +599,14 @@ let __pending = Promise.resolve();
     // shape of the earlier arity bug, where a builder silently received the
     // wrong positional argument.
     const fs = require("fs");
-    assert.strictEqual(d.decide.length, 7, "decide() arity changed; runners pass 7 positional args");
+    assert.strictEqual(d.decide.length, 8, "decide() arity changed; runners pass 8 positional args");
     // Resolve against this file, not the cwd, so `npm test` works from driver/.
     const path = require("path");
     for (const f of ["run_level.cjs", "run_full.cjs"]) {
       const src = fs.readFileSync(path.join(__dirname, f), "utf8");
       // The logger argument contains parentheses in run_level.cjs, so this must
       // not use a [^)]* class.
-      assert(/decideFn\(client, s, levelGems,[\s\S]*?, deathHistory, visitCounts, decideMemo\)/.test(src),
+      assert(/decideFn\(client, s, levelGems,[\s\S]*?, deathHistory, visitCounts, decideMemo, oscHistory\)/.test(src),
         `${f} does not pass visitCounts and decideMemo to decideFn`);
       // The objective lock must be dropped when the level resets, or the cat
       // carries a dead objective from the attempt that just killed it.

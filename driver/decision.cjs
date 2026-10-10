@@ -28,6 +28,10 @@ const PORTAL = { x: 180, y: 150 };
 const GEM_HALF_HEIGHT = 8;
 // Corrects the airborne move prompt; see airborneMap.
 const AIR_FACTS = process.env.AIR_FACTS === "1";
+// The rising/falling WORD alone, split out of AIR_FACTS (which also swaps the
+// whole airborne platform listing via airborneMap and was dropped for losing
+// L5 - the two changes were never measured apart). AIR_FACTS implies it.
+const RISE_LABEL = process.env.RISE_LABEL === "1" || AIR_FACTS;
 // MOVE_INSTR=1 states the movement rules in the move question itself. Clef weighs
 // the question far above the state text: probed at level 3's opening state, this
 // wording took the climbing jump from 0.45 to 0.59, where rewording the state or
@@ -704,28 +708,37 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
         }
         return [...out];
       })();
-      const seen = new Set([here]);
-      let frontier = [here];
-      let firstPass = true;
-      let found = false;
-      while (frontier.length && !found) {
-        const next = [];
-        for (const k of frontier) {
-          for (const t of (firstPass && k === here ? firstHop : g4.edges[k] || [])) {
-            if (t === holder) { found = true; break; }
-            if (seen.has(t) || blocked.has(t)) continue;
-            seen.add(t); next.push(t);
+      // Shortest path here -> holder under `blockedEdges` (another live goal's
+      // platforms), with the firstHop restriction on the launch pass.
+      const bfsReaches = (blockedEdges) => {
+        const seen = new Set([here]);
+        let frontier = [here];
+        let firstPass = true;
+        let found = false;
+        while (frontier.length && !found) {
+          const next = [];
+          for (const k of frontier) {
+            for (const t of (firstPass && k === here ? firstHop : g4.edges[k] || [])) {
+              if (t === holder) { found = true; break; }
+              if (seen.has(t) || blockedEdges.has(t)) continue;
+              seen.add(t); next.push(t);
+            }
+            if (found) break;
           }
-          if (found) break;
+          frontier = next;
+          firstPass = false;
         }
-        frontier = next;
-        firstPass = false;
-      }
-      // Only DEFER a goal that is reachable but only by crossing another goal's
-      // platform. A goal with no route at all must stay on the menu and keep its
-      // NO ROUTE annotation: that is what tells the model the attempt is spent,
-      // and the runner's stranding detector reads the same condition.
-      if (!found) {
+        return found;
+      };
+      const found = bfsReaches(blocked);
+      // Only DEFER a goal whose failure is caused by the blocked set (another
+      // live goal's platform). The ceiling-restricted firstHop also fails the
+      // BFS; that is not a deferral cause (measured: Darwin-27B-ZTC L6 both
+      // seeds step 274, sole live gem deferred, zero-criteria objective 422).
+      // Defer iff a second pass with an empty blocked set finds the holder. A
+      // goal with no route at all keeps its NO ROUTE annotation: the stranding
+      // detector and the model both read that condition.
+      if (!found && bfsReaches(new Set())) {
         const reachableAtAll = canReach(
           alive.find((g) => g.name === name).x,
           alive.find((g) => g.name === name).y
@@ -1122,7 +1135,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
   );
   lines.push(
     `The cat is at (${Math.round(snap.cat.x)},${Math.round(snap.cat.y)}), ${
-      snap.onPlatform ? "standing on a platform" : AIR_FACTS && snap.cat.dy < 0 ? "in the air, rising" : "in the air, falling"
+      snap.onPlatform ? "standing on a platform" : RISE_LABEL && snap.cat.dy < 0 ? "in the air, rising" : "in the air, falling"
     }.`
   );
   lines.push(
@@ -1163,7 +1176,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
         `jumping is no longer possible from this floor: the only moves left here are walking.`
       );
     }
-    if (JUMP_FACTS && !jumpGone) lines.push(jumpUpNote(snap));
+    if (JUMP_FACTS && !jumpGone) lines.push(jumpUpNote(snap) + routeAscentClause(snap, target));
     if (GEM_FACTS && /^gem_/.test(target.name)) {
       // In the move prompt it separates: 25-28% on the clearing levels, 65-82% on
       // the failing ones. Gated so its effect can be measured on its own.
@@ -1184,8 +1197,59 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
     );
     const snapNote = sideSnapNote(snap);
     if (snapNote) lines.push(snapNote);
+    // REACH_FACT (gated, off by default - blast_exit_fact.cjs proves the state is
+    // byte-identical when off): exactly one steering hold reaches the objective
+    // before landing or dying. Consequence-framed, no coordinates.
+    if (process.env.REACH_FACT === "1") {
+      const rh = reachHolds(snap, objectiveName, target.x, target.y,
+        require("./route_clock.cjs").movingFramesOf(snap));
+      if (rh.fire) {
+        const other = rh.hold === "left" ? "right" : rh.hold === "right" ? "left" : null;
+        const o = other && !rh.results[other].frames ? rh.results[other].miss : null;
+        const oDesc = o === "landed" ? "lands back on a floor" : o === "laser" ? "dies in a laser" : o === "void" ? "falls past every platform" : null;
+        lines.push(
+          `Holding ${rh.hold} reaches ${target.name} in ${rh.frames} frames` +
+          (oDesc ? `; ${other} ${oDesc}` : "") + "."
+        );
+      }
+    }
+    // NEG_HOLD (gated, off by default - byte-identical when off): exactly one
+    // held direction is strictly worse (dies, or lands strictly farther) and the
+    // other two tie at best. Plain physical fact, held-to-landing wording so it
+    // cannot overclaim about mid-air re-steering (which isFatal already models).
+    if (process.env.NEG_HOLD === "1") {
+      const nh = negHold(snap, objectiveName, target.x, target.y,
+        require("./route_clock.cjs").movingFramesOf(snap));
+      if (nh.fire) {
+        let desc;
+        if (nh.badVia === "laser") desc = "dies in a laser";
+        else if (nh.badVia === "void") desc = "falls past every floor";
+        else {
+          const m = /^(\w+)\(([\d.]+)\.\.([\d.]+)@([\d.-]+)\)$/.exec(nh.badFloor || "");
+          desc = m
+            ? `lands on platform x ${Math.round(+m[2])}..${Math.round(+m[3])} at y ${Math.round(+m[4])}, farther from ${target.name}`
+            : `lands farther from ${target.name}`;
+        }
+        lines.push(`Holding ${nh.bad} until landing ${desc}.`);
+      }
+    }
   }
   lines.push(platformMap(snap, 3, target.y > snap.cat.y, target));
+  // EXIT_FACT (gated, off by default: with the gate off the state is byte-identical,
+  // which blast_routefirst_fix.cjs proves). When the exitDirection predicate fires -
+  // every shortest route to the objective leaves this floor on the side OPPOSITE the
+  // objective's horizontal bearing - state the consequence once. No coordinates: the
+  // Arm C dead end (docs/dead-ends.md) showed injected coordinates get followed
+  // literally; this only names the end of the floor the cat is already standing on.
+  if ((process.env.EXIT_FACT === "1" || process.env.EXIT_FACT === "2") && snap.onPlatform) {
+    const ed = exitDirection(snap, levelGems, objectiveName, target.x, target.y,
+      require("./route_clock.cjs").movingFramesOf(snap),
+      process.env.EXIT_FACT === "2" ? "v2" : "v1.1");
+    if (ed.fire)
+      lines.push(
+        `${target.name} is below this floor; the shortest way down to it is off the ${ed.side} end of this floor, not toward its horizontal offset.`
+      );
+  }
   if (!MOVE_INSTR) lines.push(`Which single command moves the cat toward the objective?`);
 
   const state = lines.concat(deathHistoryLines(deathHistory, snap)).join("\n");
@@ -1368,7 +1432,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     while (y < dist) { dy += CFG.catFallingAcceleration; y += dy; f += 1; }
     return f;
   };
-  const dropFrom = (endX) => {
+  const dropFrom = (endX, side) => {
     const reachable = [];
     for (const p of plats) {
       if (p[1] <= curY) continue; // only platforms below
@@ -1378,7 +1442,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
       if (e.right >= lo && e.left <= hi) reachable.push({ p, e });
     }
     if (!reachable.length)
-      return { survivable: false, carriesTarget: false, text: `fall to the bottom laser (no platform reachable by steering)` };
+      return { survivable: false, carriesTarget: false, lands: [], text: `fall to the bottom laser (no platform reachable by steering)` };
     const best = reachable
       .map((r) => `steer to land on platform x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}`)
       .join("; ");
@@ -1388,10 +1452,34 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     const carriesTarget = !!target && reachable.some((r) =>
       target.x >= r.e.left && target.x <= r.e.right && targetOverlapsFloor(target, r.p[1], snap.cat.height)
     );
-    return { survivable: true, carriesTarget, text: best };
+    return { survivable: true, carriesTarget, lands: reachable.map((r) => ({ p: r.p, e: r.e })), text: best };
   };
-  const dropLeft = dropFrom(run.left);
-  const dropRight = dropFrom(run.right);
+  const dropLeft = dropFrom(run.left, "left");
+  const dropRight = dropFrom(run.right, "right");
+  // GAP_DROP (gated, off by default): the gap note argues against the productive
+  // move when the objective is reached by DROPPING off the warned edge, not by
+  // crossing the gap (L4 @93: removing the note flips left 0.26 -> 0.92; the
+  // extension keeps the sentence true and still flips - docs/flash-l4-analysis.md).
+  // Narrow v1: fire only when EVERY landing off that edge is the objective's own
+  // holder floor, so it can never fire where crossing the gap really is the route.
+  if (process.env.GAP_DROP === "1" && snap.onPlatform && target) {
+    const dropClause = (r) => {
+      if (!r.survivable || !r.lands.length) return null;
+      const allHolder = r.lands.every((l) =>
+        target.x >= l.e.left && target.x <= l.e.right && targetOverlapsFloor(target, l.p[1], snap.cat.height));
+      if (!allHolder) return null;
+      return `; stepping off this end drops onto ${r.lands.map((l) => `x ${Math.round(l.e.left)}..${Math.round(l.e.right)} at y ${l.p[1]}`).join("; ")}`;
+    };
+    // The sentence boundary is ". " (x-ranges contain dots, so [^.]* cannot be used).
+    if (leftGap != null && target.x < run.left) {
+      const c = dropClause(dropLeft);
+      if (c) gapMsg = gapMsg.replace(/(The gap to the LEFT is(?:(?!\. ).)*?)(\. )/, (_a, s) => `${s}${c}. `);
+    }
+    if (rightGap != null && target.x > run.right) {
+      const c = dropClause(dropRight);
+      if (c) gapMsg = gapMsg.replace(/(The gap to the RIGHT is(?:(?!\. ).)*?)(\. )/, (_a, s) => `${s}${c}. `);
+    }
+  }
   // Whether ANY end of this floor is a survivable descent. When both are dead the
   // "ONLY descents are at its ends" line below would name two cliffs as the route
   // (measured on level 4: emitted ~30x per cycle on the y=171 floor, where both
@@ -1662,6 +1750,62 @@ function jumpUpNote(snap) {
   return `Higher platforms a jump from this floor can land on: ${desc.join("; ")}. Any other higher platform is out of reach of one jump from here.`;
 }
 
+// ROUTE_ASCENT (gated, off by default): when the ascent note lists 2+ floors and
+// the graph says the shortest route to the objective leaves this floor by jumping
+// to ONE side only, and every listed floor on the OTHER side has no route to the
+// objective at all, name both. L11 @231: bearing points right at a dead-end floor
+// while the route goes left; the clause flipped jump_left 0.01 -> 0.82 at 3 of 3
+// loop states (docs/flash-l10-l12-analysis.md). Both clauses must be literally
+// true: route side from a BFS, dead end from unreachability, not from bearing.
+function routeAscentClause(snap, target) {
+  if (process.env.ROUTE_ASCENT !== "1") return "";
+  if (!snap.onPlatform || !target || !target.name || !/^gem_/.test(target.name)) return "";
+  const REACH = require("./reachability.cjs");
+  const here = REACH.platformKeyUnder(snap.level, snap.cat.x, snap.cat.y);
+  if (!here) return "";
+  const g = REACH.graph(snap.level, snap.cat.height);
+  const cur = g.runs.find((r) => REACH.runKey(r) === here);
+  if (!cur) return "";
+  const nbr = (k) => g.runs.find((r) => REACH.runKey(r) === k);
+  const ups = (g.edges[here] || []).map(nbr).filter((r) => r && r.y < cur.y);
+  if (ups.length < 2) return "";
+  // Collector floors: the target's holder, or any floor a jump from which collects it.
+  const runs = REACH.runsOf(snap.level);
+  const isCollector = (r) =>
+    (target.x >= r.left && target.x <= r.right && targetOverlapsFloor(target, r.y, snap.cat.height)) ||
+    !!runJumpWindow(snap.level, runs, r, target, snap.cat.height);
+  // The floor graph is DIRECTED (A->B = a jump from A lands on B), so distance to
+  // the nearest collector is a forward BFS from each floor, stopping on a collector.
+  const keyOf = (r) => REACH.runKey(r);
+  const distToCollector = (startKey) => {
+    const seen = new Set([startKey]);
+    const q = [[startKey, 0]];
+    for (let i = 0; i < q.length; i++) {
+      const [k, d] = q[i];
+      const r = nbr(k);
+      if (r && isCollector(r)) return d;
+      for (const nk of (g.edges[k] || [])) if (!seen.has(nk)) { seen.add(nk); q.push([nk, d + 1]); }
+    }
+    return Infinity;
+  };
+  const dCur = distToCollector(here);
+  if (dCur === 0 || dCur === Infinity) return "";
+  const sideOf = (r) => ((r.left + r.right) / 2 > snap.cat.x ? "right" : "left");
+  const firstHops = (g.edges[here] || []).map(nbr).filter((r) => r && distToCollector(keyOf(r)) === dCur - 1);
+  if (!firstHops.length) return "";
+  const hopSides = new Set(firstHops.map(sideOf));
+  if (hopSides.size !== 1) return "";
+  const routeSide = [...hopSides][0];
+  const routeFloor = firstHops.find((r) => r.y < cur.y && sideOf(r) === routeSide);
+  if (!routeFloor) return ""; // the clause names an ascent floor; a route that leaves by dropping is not this fact
+  const opposite = ups.filter((r) => sideOf(r) !== routeSide);
+  const deadEnds = opposite.filter((r) => distToCollector(keyOf(r)) === Infinity);
+  if (opposite.length !== deadEnds.length) return ""; // every opposite listed floor must be literally unreachable
+  const fmt = (r) => `x ${Math.round(r.left)}..${Math.round(r.right)} at y ${r.y}`;
+  const deadText = deadEnds.map(fmt).join(" and ");
+  return ` The shortest route to ${target.name} leaves this floor by jumping ${routeSide.toUpperCase()} (to ${fmt(routeFloor)}); the floor${deadEnds.length > 1 ? "s" : ""} to the ${routeSide === "left" ? "right" : "left"} (${deadText}) ${deadEnds.length > 1 ? "do" : "does"} not lead to it.`;
+}
+
 // Airborne platform listing for AIR_FACTS: the platforms below the cat first,
 // nearest first, then the rest, each relative to the cat.
 function airborneMap(snap, plats, maxNear) {
@@ -1783,7 +1927,9 @@ function descentPoints(snap, levelGems) {
       // That false D disjunct is why descent_right won ~85% of on-B decisions
       // and drove the B<->C cycle (measured r5/r6, L4). LANDDESC_ENVELOPE=1
       // restores the old envelope disjunction for A/B.
-      const envDesc = land.map((r) => `x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}`).join(" or ");
+      const envDesc = land
+        .map((r) => `x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}`)
+        .join(" or ");
       // MEASURED r7 (L4, 27B, 3000 steps): held-arc landDesc made L4 WORSE
       // (21d vs 13d on r6). The new dominant death class was 16x at (76,115)
       // obj=gem_b: on A with gem_b on E below-left, the cat walks off A's left
@@ -1802,14 +1948,327 @@ function descentPoints(snap, levelGems) {
       const he = platformEdges(hp[0]);
       return `x ${Math.round(he.left)}..${Math.round(he.right)} at y ${Math.round(hr.y)}`;
     })();
+    // Data-only field: the platform KEYS the step-off can land on (the same
+    // set landDesc renders into the label). Consumers (census_exit_direction.cjs)
+    // need keys, not text; the prompt wording is untouched - the blast-radius
+    // script must show 0 text diffs with this added.
+    const REACHdp = require("./reachability.cjs");
+    const landKeys = land
+      .map((r) => REACHdp.platformKeyUnder(snap.level, r.e.left, r.p[1]))
+      .filter(Boolean);
+    // PORTAL_DESC (gated, off by default): at the endgame (all 3 gems collected)
+    // say on the descent entry that the portal is reachable on the way down -
+    // only when survival.canStillLand with the portal box proves a trajectory
+    // from just past THIS edge can touch it. The endgame dither keeps `portal`
+    // as objective while the descent that actually reaches it loses by 0.064 at
+    // the archetype state; docs/flash-l13-analysis.md.
+    let portalNote = "";
+    if (process.env.PORTAL_DESC === "1" && snap.gemsCollected >= 3 && mfNow != null) {
+      const { canStillLand } = require("./survival.cjs");
+      const hereKey = REACHdp.platformKeyUnder(snap.level, cx, cy);
+      const stepOut = side === "left" ? -0.25 : 0.25;
+      let ex = null;
+      for (let x = endX + stepOut; Math.abs(x - endX) <= 8; x += stepOut) {
+        if (REACHdp.platformKeyUnder(snap.level, x, cy) !== hereKey) { ex = x; break; }
+      }
+      if (ex != null) {
+        const platsPB = require("./arc.cjs").platformBoxes(snap.level);
+        if (canStillLand(platsPB, { x: ex, y: curY, dy: 0, mf: mfNow }, snap.cat.height, null, side, true))
+          portalNote = "; dropping off this end, the cat can steer into the exit portal on the way down";
+      }
+    }
     pts.push({
       name: `descent_${side}`,
       x: endX,
       y: cy,
-      label: `${side} descent point (x ${Math.round(endX)}): step off the ${side} end of your floor to descend — lands on ${landDesc}`,
+      lands: landKeys,
+      label: `${side} descent point (x ${Math.round(endX)}): step off the ${side} end of your floor to descend — lands on ${landDesc}${portalNote}`,
     });
   }
   return pts;
+}
+
+// Shortest hop count over the jump graph from `from` to `to`, or null.
+function bfsEdgeDist(edges, from, to) {
+  if (from === to) return 0;
+  const seen = new Set([from]);
+  let frontier = [from];
+  for (let d = 1; frontier.length; d++) {
+    const next = [];
+    for (const k of frontier)
+      for (const t of edges[k] || []) {
+        if (t === to) return d;
+        if (!seen.has(t)) { seen.add(t); next.push(t); }
+      }
+    frontier = next;
+  }
+  return null;
+}
+
+function bfsDistToSet(edges, from, targets) {
+  if (targets.has(from)) return 0;
+  const seen = new Set([from]);
+  let frontier = [from];
+  for (let d = 1; frontier.length; d++) {
+    const next = [];
+    for (const k of frontier)
+      for (const t of edges[k] || []) {
+        if (targets.has(t)) return d;
+        if (!seen.has(t)) { seen.add(t); next.push(t); }
+      }
+    frontier = next;
+  }
+  return null;
+}
+
+// The EXIT_FACT predicate (docs/flash-l2-l5-analysis.md): the cat stands on a
+// floor, the objective sits on a different floor, and EVERY shortest route to
+// the objective's holder leaves this floor on ONE side - the side OPPOSITE the
+// objective's horizontal bearing. The move prompt states the objective's offset
+// ("3px right, 124px down"), and a model that follows the 3px walks off the
+// wrong end: on L2 step 54 the left descent lands on gem_c's holder in 1 hop
+// while the right side needs 3. Census: Flash complies with the exit side only
+// 16.4% of firings (Darwin 30.0%, Phocinae 25.2%, Clef never fires).
+//
+// ONE SOURCE OF TRUTH: driver/experiments/census_exit_direction.cjs requires
+// this function, so the census and the live prompt cannot drift apart.
+// `mf` is the moving-frame count for the jump simulation; the census passes the
+// archived value, the driver derives it from the live snap.
+function exitDirection(snap, levelGems, objName, objX, objY, mf, mode) {
+  // v1 = the envelope version PROVEN LIVE (L2 5/5 with the gate, part of the L13
+  // wins): descent landings from descentPoints' `lands` envelope, no down-filter.
+  // v1.1 = v1 exactly, MINUS a descent exit whose EXACT step-off (arc.simulate
+  // held toward the edge from just past it) lands on a floor HIGHER than the
+  // cat's. The envelope misses the up-snap, so v1 could name a "way down" that
+  // teleports the cat up (L12 @125 left end -> floor(193..245@108)); v1.1 can
+  // only ever REMOVE such false claims, never add or move a firing. It replaces
+  // v1 as EXIT_FACT=1 once the three checks pass (L2 assert state still fires
+  // D=left; L12 @125 up-snap side silent; blast vs v1 touches only snap-up
+  // states). docs/flash-l10-l12-analysis.md.
+  // v2 = landingPlatforms landings (committed side-hold then free steering, from
+  // just past the edge) + the strict "way DOWN" filter: honest about up-snaps
+  // (L12: the left step-off teleports the cat UP) but not yet proven live.
+  const v2 = mode === "v2";
+  const v11 = mode === "v1.1";
+  const REACH = require("./reachability.cjs");
+  if (!snap.onPlatform) return { reason: "notGrounded" };
+  const catX = snap.cat.x, catY = snap.cat.y, h = snap.cat.height || 18;
+  const here = REACH.platformKeyUnder(snap.level, catX, catY);
+  if (!here) return { reason: "noFloor" };
+  if (objName === "portal" && snap.gemsCollected < 3) return { reason: "notGrounded" }; // portal not offered
+  if (!/^gem_[abc]$/.test(objName) && objName !== "portal") return { reason: "waypoint" };
+  const holder = REACH.platformHolding(snap.level, objX, objY);
+  if (!holder) return { reason: "noHolder" };
+  if (holder === here) return { reason: "objOnFloor" };
+  // Descent exits. v1: descentPoints' `lands` envelope keys. v2: the step-off
+  // landings computed by survival.landingPlatforms from the airborne state just
+  // past the edge (committed action = the side, the cat steps off while holding
+  // it, then free steering - the same bounds isFatal uses). The v1 envelope is
+  // NOT used in v2: it misses the up-snap (L12 step 304: the left step-off
+  // SNAPS UP to floor(193..245@108), so the EXIT_FACT sentence "the way down is
+  // left" was false there) and its band over-claims. The edge x is stepped
+  // outward 0.25px at a time until the cat's 1px box no longer overlaps this
+  // floor - exact for both edges and any width.
+  const { landingPlatforms } = require("./survival.cjs");
+  const pastEdge = (edgeX, side) => {
+    const step = side === "left" ? -0.25 : 0.25;
+    for (let x = edgeX + step; Math.abs(x - edgeX) <= 8; x += step) {
+      if (REACH.platformKeyUnder(snap.level, x, catY) !== here) return x;
+    }
+    return null;
+  };
+  const routes = [];
+  const g4 = REACH.graph(snap.level, h);
+  const distOf = (lk) => {
+    if (lk === holder) return 1;
+    const d = bfsEdgeDist(g4.edges, lk, holder);
+    return d == null ? Infinity : 1 + d;
+  };
+  for (const p of descentPoints(snap, levelGems)) {
+    const side = p.name.endsWith("left") ? "left" : "right";
+    let lands;
+    if (!v2) {
+      lands = (p.lands || []).filter((k) => k !== here);
+      if (v11) {
+        // Exact step-off check: held toward the edge from just past it. Only a
+        // LANDED-on-a-higher-floor result drops the exit (the up-snap); a dead
+        // or still-falling result keeps the v1 claim untouched.
+        const ex = pastEdge(p.x, side);
+        if (ex != null) {
+          const r = require("./arc.cjs").simulate(snap.level, ex, catY, 0, h, side, mf, { grounded: false });
+          if (r.outcome === "landed") {
+            const t = REACH.platformKeyUnder(snap.level, r.x, r.y);
+            const ty = t ? parseFloat(t.slice(t.lastIndexOf("@") + 1)) : null;
+            if (t && t !== here && ty < catY) continue;
+          }
+        }
+      }
+    } else {
+      const ex = pastEdge(p.x, side);
+      if (ex == null) continue;
+      const airSnap = {
+        level: snap.level, onPlatform: false, gemsCollected: snap.gemsCollected,
+        cat: { x: ex, y: catY, dx: 0, dy: 0, height: h }, drones: snap.drones,
+      };
+      lands = [...new Set(landingPlatforms(airSnap, side)
+        .map((b) => REACH.platformKeyUnder(snap.level, b.x, b.y)))]
+        .filter((k) => k && k !== here);
+    }
+    if (!lands.length) continue;
+    let dMax = 0;
+    for (const lk of lands) {
+      const d = distOf(lk);
+      if (d === Infinity) { dMax = Infinity; break; }
+      dMax = Math.max(dMax, d);
+    }
+    if (Number.isFinite(dMax)) routes.push({ side, d: dMax, lands });
+  }
+  // Jump exits: the EXACT arc from catX (the move question is about the next
+  // move from where the cat stands). landingsFrom's band envelope over-claims:
+  // it reports every platform the reachable-x band crosses without the cat's
+  // own floor blocking the fall, so a gem directly below the cat looks
+  // reachable from BOTH directions and the sides go ambiguous (L2 step 54:
+  // gem_c's holder at 84..136@240 under x=87). Landed -> the floor under the
+  // landing; laser/void -> no route.
+  for (const act of ["jump_left", "jump_right"]) {
+    const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, { grounded: true });
+    if (r.outcome !== "landed") continue;
+    const t = REACH.platformKeyUnder(snap.level, r.x, r.y);
+    if (!t || t === here) continue;
+    const d = distOf(t);
+    if (Number.isFinite(d)) routes.push({ side: act === "jump_left" ? "left" : "right", d, lands: [t] });
+  }
+  if (!routes.length) return { reason: "noExits" };
+  // v2 only: the sentence says "the shortest way DOWN". A route whose landings
+  // sit at or above this floor (the L12 up-snap) is a real route but not a way
+  // down, and the sentence would be false there. Only strictly-descending
+  // routes may fire in v2.
+  const elig = v2
+    ? routes.filter((x) => x.lands.every((lk) => parseFloat(lk.slice(lk.lastIndexOf("@") + 1)) > catY))
+    : routes;
+  if (v2 && !elig.length) return { reason: "noDownExits" };
+  const minD = Math.min(...elig.map((x) => x.d));
+  const sides = new Set(elig.filter((x) => x.d === minD).map((x) => x.side));
+  if (sides.size > 1) return { reason: "exitsAmbiguous" };
+  const side = [...sides][0];
+  const dirToObj = objX > catX ? "right" : objX < catX ? "left" : null;
+  if (dirToObj === null || dirToObj === side) return { reason: "sideMatchesDir" };
+  return { fire: true, side, dirToObj, routes, holder };
+}
+
+
+// The REACH_FACT predicate (docs/flash-l13-analysis.md): the cat is airborne and
+// EXACTLY ONE of the three steering holds ({left, right, none}) passes the
+// objective's collision box before landing or dying. The Flash L13 archetype: cat
+// airborne at (197.75,140), portal box starts at x=196 - 1.75px and two frames of
+// holding left from clearing the level - and the model answered right with
+// probability 1.000, twice, at the identical state.
+//
+// Collision boxes are the game's own, read from source, not assumed:
+//   cat    [cx, cx+1] x [cy-h, cy]        (getCatCollisionObject)
+//   portal 32x32 centred on (180,150)    (getPortalCollisionObject; live only at gemsCollected>=3)
+//   gem    16x16 centred on the spawn    (resetGems.ts anchor 0.5, 16px frames)
+//   collides = plain AABB overlap, once per game-loop frame.
+//
+// ONE SOURCE OF TRUTH: driver/experiments/census_reach_fact.cjs requires this.
+function reachHolds(snap, objName, objX, objY, mf) {
+  if (snap.onPlatform) return { reason: "grounded" };
+  if (objName === "portal" && snap.gemsCollected < 3) return { reason: "portalNotLive" };
+  if (!/^gem_[abc]$/.test(objName) && objName !== "portal") return { reason: "waypoint" };
+  const h = snap.cat.height || 18;
+  const half = objName === "portal" ? 16 : 8;
+  const bx0 = objX - half, bx1 = objX + half, by0 = objY - half, by1 = objY + half;
+  const hits = (cx, cy) => cx < bx1 && cx + 1 > bx0 && cy - h < by1 && cy > by0;
+  const { simulate } = require("./arc.cjs");
+  const results = {};
+  for (const hold of ["left", "right", "none"]) {
+    let hit = null;
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
+      grounded: false,
+      onFrame: (x, y, f) => { if (!hit && hits(x, y)) hit = { f, x, y }; },
+    });
+    results[hold] = hit ? { frames: hit.f } : { miss: r.outcome };
+  }
+  const reaching = Object.entries(results).filter(([, v]) => v.frames);
+  if (reaching.length !== 1) return { reason: reaching.length ? "multipleReach" : "noneReach", results };
+  return { fire: true, hold: reaching[0][0], frames: reaching[0][1].frames, results };
+}
+
+// The NEG_HOLD predicate (gated NEG_HOLD=1): the NEGATIVE airborne fact. Fire
+// when exactly ONE hold is strictly WORSE held to landing (dies, or lands
+// strictly farther from the objective) and the other two are EQUAL-BEST - the
+// strict-minimum predicates (airRoute, the rejected KEEP_HOLD) are silent
+// exactly where the L10 mode-1 apex sits, because the two good holds tie on
+// floor(304..356@140) and only the bad one (left, off the tower edge, death)
+// differs. Census: experiments/census_neg_hold.cjs (25.9% of airborne gem-obj
+// decisions fire - broad; the live probe decides).
+// Scoring per hold: 0 if the held arc touches the objective box; else the
+// landing floor's BFS distance on g4 to the TARGET SET = holder floor plus the
+// collector floors (platforms from which some jump arc touches the gem box -
+// the floatCollectPlatforms convention of census_float_exit.cjs); Infinity if
+// the arc dies. ONE SOURCE OF TRUTH: census_neg_hold.cjs requires this.
+const negHoldCollectCache = new Map();
+function negHoldTargets(level, gx, gy, h, mf) {
+  // The cache key includes mf ON PURPOSE: the touch arcs must be traced at the
+  // REAL laser clock (a platform reachable at mf=0 may be closed by mf=300 and
+  // vice versa; a geometry-only cache would over-claim, which is exactly what
+  // the simulate-clock audit exists to catch).
+  const ck = `${level}:${gx},${gy}:${h}:${mf}`;
+  if (negHoldCollectCache.has(ck)) return negHoldCollectCache.get(ck);
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const set = new Set();
+  const hit = (cx, cy) => cx < gx + 8 && cx + 1 > gx - 8 && cy - h < gy + 8 && cy > gy - 8;
+  for (const p of REACH.runsOf(level)) {
+    const key = REACH.platformKeyUnder(level, (p.left + p.right) / 2, p.y);
+    if (!key) continue;
+    for (let x = Math.ceil(p.left); x <= Math.floor(p.right); x += 2) {
+      for (const act of ["jump", "jump_left", "jump_right"]) {
+        let touch = false;
+        simulate(level, x, p.y, 0, h, act, mf, { grounded: true, onFrame: (fx, fy) => { if (hit(fx, fy)) touch = true; } });
+        if (touch) { set.add(key); break; }
+      }
+      if (set.has(key)) break;
+    }
+  }
+  const holder = REACH.platformHolding(level, gx, gy);
+  if (holder) set.add(holder);
+  negHoldCollectCache.set(ck, set);
+  return set;
+}
+function negHold(snap, objName, objX, objY, mf) {
+  if (snap.onPlatform) return { reason: "grounded" };
+  if (!/^gem_[abc]$/.test(objName)) return { reason: "notGem" };
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const h = snap.cat.height || 18;
+  const hit = (cx, cy) => cx < objX + 8 && cx + 1 > objX - 8 && cy - h < objY + 8 && cy > objY - 8;
+  const targets = negHoldTargets(snap.level, objX, objY, h, mf);
+  const edges = REACH.graph(snap.level, h).edges;
+  const d = {}, via = {}, floorOf = {};
+  for (const hold of ["left", "right", "none"]) {
+    let collect = false;
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
+      grounded: false,
+      onFrame: (x, y) => { if (!collect && hit(x, y)) collect = true; },
+    });
+    if (collect) { d[hold] = 0; via[hold] = "collect"; continue; }
+    if (r.outcome !== "landed") { d[hold] = Infinity; via[hold] = r.outcome; continue; }
+    const lk = REACH.platformKeyUnder(snap.level, r.x, r.y);
+    if (!lk) { d[hold] = Infinity; via[hold] = "void"; continue; }
+    floorOf[hold] = lk;
+    const hops = targets.has(lk) ? 0 : bfsDistToSet(edges, lk, targets);
+    d[hold] = hops == null ? Infinity : hops;
+    via[hold] = "land";
+  }
+  const holds = ["left", "right", "none"];
+  const min = Math.min(...holds.map((k) => d[k]));
+  if (!Number.isFinite(min)) return { reason: "allDie", d };
+  const best = holds.filter((k) => d[k] === min);
+  if (best.length !== 2) return { reason: "notTwoBest", d };
+  const bad = holds.find((k) => d[k] !== min);
+  if (!bad) return { reason: "allTie", d };
+  return { fire: true, bad, d, badVia: via[bad], badFloor: floorOf[bad] };
 }
 
 // Hop points: reachable neighbouring platforms (LEVEL or ABOVE) offered as
@@ -2344,7 +2803,71 @@ const VISIT_WINDOW = 12;
 const VISIT_STUCK_THRESHOLD = 3;
 const TEMP_PER_REVISIT = 0.5;
 
-async function decide(client, snap, levelGems, logger, deathHistory, visitCounts, memo) {
+// ESC_FIX: 2-key oscillation tracker. The L3 measurement (docs/flash-l2-l5-analysis.md,
+// 2026-10-10) showed the losers' dither spends ~75% of its decisions in SAMPLE mode
+// at the SAME two 10px keys, and two thirds of those samples land off-argmax: the
+// revisit escalation feeds the loop it is meant to break. This tracker remembers,
+// per key, which SAMPLEd move led straight back to the same key (or completed a
+// K->P->K 2-cycle) with no gem progress, so the sampler can exclude those moves and
+// renormalise - still drawing only from the model's own distribution (Rule 1: the
+// exclusion removes demonstrated dead ends, it never injects a preferred move).
+// Argmax decisions are untouched.
+function createOscHistory() {
+  let prev = null;
+  let prevPrev = null;
+  const bad = new Map();
+  const mark = (o) => {
+    if (!o.sampled) return;
+    if (!bad.has(o.key)) bad.set(o.key, new Set());
+    bad.get(o.key).add(o.move);
+  };
+  return {
+    // Called at the START of each decision with the current key and gem count:
+    // the pending observation from the previous decision has now shown its outcome.
+    settle(key, gc) {
+      if (prev && prev.gc === gc) {
+        if (prev.key === key) {
+          mark(prev);
+        } else if (prevPrev && prevPrev.key === key && prevPrev.key !== prev.key) {
+          mark(prev);
+          mark(prevPrev);
+        }
+      }
+      prevPrev = prev;
+      prev = null;
+    },
+    // Called after the move is chosen, recording this decision as pending.
+    note(key, move, sampled, gc) {
+      prev = { key, move, sampled, gc };
+    },
+    badAt(key) {
+      return bad.get(key) || null;
+    },
+    // Mirror visitCounts.clear(): keys are 10px positions shared across levels,
+    // so evidence must not leak from one level to the next.
+    clear() {
+      prev = null;
+      prevPrev = null;
+      bad.clear();
+    },
+  };
+}
+
+// Drop the excluded moves from a probability table; return null when nothing would
+// survive (the caller then keeps the full table - never sample an empty set).
+function excludeBadMoves(probs, badSet) {
+  if (!badSet || !badSet.size) return null;
+  const out = {};
+  let sum = 0;
+  for (const k of Object.keys(probs)) {
+    if (badSet.has(k)) continue;
+    out[k] = probs[k];
+    sum += probs[k];
+  }
+  return sum > 0 ? out : null;
+}
+
+async function decide(client, snap, levelGems, logger, deathHistory, visitCounts, memo, oscHistory) {
   const log = logger || (() => {});
   // The game applies a new steering input one frame late, so survival.cjs needs the
   // move the cat is still carrying. Dropped when the laser clock went backwards: a
@@ -2353,6 +2876,25 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
   const mfNow = snap.drones && snap.drones.tl ? (snap.drones.tl.y - 1) / require("./physics.cjs").droneSpeed : null;
   if (memo && memo.lastMove && mfNow != null && mfNow >= memo.lastMoveMF) snap = { ...snap, prevMove: memo.lastMove };
   const objCall = buildObjectiveCall(snap, levelGems, deathHistory);
+  // An empty objective menu has no meaningful answer: the model would be asked
+  // "which single objective" with zero choices, and the adapter rejects the
+  // request (systemone 422 "'criteria' must be a non-empty object"), pausing the
+  // run with no way to tell WHY the menu emptied (Darwin-27B-ZTC L6, both
+  // seeds, step 274). Throw with the snapshot so the state is diagnosable
+  // offline instead of reconstructed by hand. Rule 1: no default, no fallback.
+  if (objCall.objectiveNames.length === 0) {
+    throw new Error(
+      "empty objective menu: no gem, descent or ascent point was offered. " +
+      "state: " + JSON.stringify({
+        level: snap.level,
+        cat: { x: snap.cat.x, y: snap.cat.y, dy: snap.cat.dy, h: snap.cat.height },
+        onPlatform: snap.onPlatform,
+        movingFrames: mfNow,
+        gemsCollected: snap.gemsCollected,
+        gemPositions: snap.gemPositions,
+      })
+    );
+  }
 
   // OBJ_SAMPLE: extend the documented escalation policy to the OBJECTIVE call.
   // "Its own distribution is sampled only at positions that have demonstrably
@@ -2572,6 +3114,9 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
     TEMP_PER_REVISIT * revisits
   );
   const T = Math.min(SAMPLE_TEMPERATURE + stuckness, TEMP_MAX);
+  // ESC_FIX: settle the previous decision against the key we are now at (this is
+  // where a dead-end move becomes known as one), before this decision samples.
+  if (oscHistory) oscHistory.settle(hereKey, snap.gemsCollected);
   // WPT_ARGMAX: a waypoint objective is a MULTI-decision commitment (walk to the
   // edge, step off). Per-decision move sampling inside that commitment is the
   // wobble that kills it: measured on out/exp_objsample/L12_s1.log step 726,
@@ -2582,9 +3127,25 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
   // its argmax to execute. The waypoint commit cap still bounds how long the
   // commitment can run.
   const wptTrust = process.env.WPT_ARGMAX === "1" && WAYPOINT.test(objective);
-  const move = exploring && !wptTrust ? sampleDistribution(moveProbs, T, RNG) : argmaxMove;
+  // ESC_FIX: at a key where a SAMPLEd move already led straight back without
+  // progress, exclude it from the sample and renormalise the rest. If every move
+  // with mass is excluded, keep the full table (never sample an empty set).
+  let sampleProbs = moveProbs;
+  let excluded = null;
+  if (oscHistory && exploring) {
+    const filtered = excludeBadMoves(moveProbs, oscHistory.badAt(hereKey));
+    if (filtered) {
+      const drop = Object.keys(moveProbs).filter((k) => !(k in filtered));
+      if (drop.length) {
+        excluded = drop;
+        sampleProbs = filtered;
+      }
+    }
+  }
+  const move = exploring && !wptTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
+  if (oscHistory) oscHistory.note(hereKey, move, exploring, snap.gemsCollected);
   if (memo) { memo.lastMove = move; memo.lastMoveMF = mfNow; }
-  log(`move=${move}(argmax ${argmaxMove}) mode=${exploring ? "SAMPLE" : "ARGMAX"} T=${T.toFixed(2)} priorDeaths=${priorDeaths} revisits=${revisits} probs=${JSON.stringify(moveProbs)}`);
+  log(`move=${move}(argmax ${argmaxMove}) mode=${exploring ? "SAMPLE" : "ARGMAX"} T=${T.toFixed(2)} priorDeaths=${priorDeaths} revisits=${revisits}${excluded ? ` esc_excluded=[${excluded.join(",")}]` : ""} probs=${JSON.stringify(moveProbs)}`);
 
   return {
     objective,
@@ -2612,6 +3173,8 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
 
 module.exports = {
   PORTAL,
+  createOscHistory,
+  excludeBadMoves,
   safeRect,
   catMargins,
   gemMargin,
@@ -2626,6 +3189,9 @@ module.exports = {
   composeLayaMove,
   halogenDecide,
   descentPoints,
+  exitDirection,
+  reachHolds,
+  negHold,
   ascentPoints,
   gemFromNote,
   HalogenParseError,
