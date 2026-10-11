@@ -31,6 +31,7 @@ const SUITES = [
   "test_floor_text.cjs",
   "test_overshot_fix.cjs",
   "test_desc_upsnap.cjs",
+  "test_walkoff_clear.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.
