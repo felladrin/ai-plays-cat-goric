@@ -30,3 +30,19 @@ const o13a = [G[13][1], G[13][2]].map(([x, y]) => ({ x, y }));
 assert.strictEqual(W.collectWindowLine(13, ...G[13][0], 150, o13a), " It can be collected only during the next 178 moving frames.");
 delete process.env.COLLECT_WINDOW;
 console.log("test_collect_window: Failed: 0");
+
+// COLLECT_WINDOW=2: from the L6 right-hand floors the live graph loses every route
+// to gem_a at mf 220 (gem_a's own deadline is 670); a floor that itself vanishes
+// first gives no floor window (the L6 spawn floor), and L10/L11 keep the v1 line.
+process.env.COLLECT_WINDOW = "2";
+const W2 = require("./collect_window.cjs");
+assert.strictEqual(W2.reachClose(6, "floor(211..263@220)", ...G[6][0]), 220);
+assert.strictEqual(W2.reachClose(6, "floor(33..85@75)", ...G[6][0]), null);
+const o6 = [G[6][1], G[6][2]].map(([x, y]) => ({ x, y }));
+assert.strictEqual(W2.collectWindowLine(6, ...G[6][0], 120, o6, "floor(211..263@220)"),
+  " From this floor it can be reached only during the next 100 moving frames, before any other gem's time runs out.");
+assert.strictEqual(W2.collectWindowLine(6, ...G[6][0], 5, o6, "floor(33..85@75)"), "");
+assert.strictEqual(W2.collectWindowLine(11, ...G[11][0], 5, others11, "floor(222..274@228)"),
+  " It can be collected only during the next 173 moving frames, before any other gem's time runs out.");
+delete process.env.COLLECT_WINDOW;
+console.log("test_collect_window v2: Failed: 0");

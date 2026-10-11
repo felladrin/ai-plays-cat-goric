@@ -864,7 +864,8 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
   // COLLECT_WINDOW (gated): a gem collectable only in a window far shorter than its deadline (collect_window.cjs).
   const mfObj = (snap.drones.tl.y - 1) / 0.2;
   for (const g of alive) {
-    const w = require("./collect_window.cjs").collectWindowLine(snap.level, g.x, g.y, mfObj, alive.filter((o) => o !== g));
+    const fkObj = snap.onPlatform ? require("./reachability.cjs").platformKeyUnder(snap.level, snap.cat.x, snap.cat.y) : null;
+    const w = require("./collect_window.cjs").collectWindowLine(snap.level, g.x, g.y, mfObj, alive.filter((o) => o !== g), fkObj);
     const e = w && presented.find((p) => p.name === g.name);
     if (e) { e.line += w; e.crit += w; }
   }
