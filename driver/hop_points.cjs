@@ -21,6 +21,7 @@
 // blocker.
 const CFG = require("./physics.cjs");
 const LEVELS = require("./level_data.cjs");
+const WALK_GAP = () => (process.env.GAP_WALK === "1" ? 1 : 0); // see decision.cjs WALK_GAP
 const { simulate } = require("./arc.cjs");
 
 const SAME_FLOOR_Y = 40; // an objective within this of the floor, over its span, is "on this floor"
@@ -36,7 +37,7 @@ function floorRun(plats, edgesOf, cx, cy, Y_TOL = 14) {
   const sameY = plats.filter((p) => p[1] === curY).map((p) => edgesOf(p[0], p[1])).sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
-    if (runs.length && e.left <= runs[runs.length - 1].right) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
+    if (runs.length && e.left <= runs[runs.length - 1].right + WALK_GAP()) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
     else runs.push({ left: e.left, right: e.right });
   }
   return { run: runs.find((r) => cx >= r.left && cx <= r.right) || runs[0], curY };
