@@ -1545,8 +1545,28 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
       dropMsg += `Of the two, only stepping off the ${dropLeft.carriesTarget ? "LEFT" : "RIGHT"} end lands on a floor carrying ${target.name}. `;
     }
   }
+  // AIR_EDGE (gated): airborne just past an end of this floor, the grounded block
+  // was false ("the floor you stand on", "NO way down at your current x") at the
+  // state where the model steered back onto the floor it had just left (L2 left
+  // end, (71.5,64.4): `right` p 0.72, repeated until the laser; docs/results.md).
+  // Say where the cat is, and whether steering back lands it on this floor again
+  // (arc.simulate at the real clock), instead.
+  const AIR_EDGE = process.env.AIR_EDGE === "1";
+  // "just past" only: within 8px of the end and 14px (Y_TOL) of the floor's height.
+  const pastEnd = AIR_EDGE && !snap.onPlatform && Math.abs(cy - curY) <= Y_TOL &&
+    ((cx < run.left && run.left - cx <= 8) || (cx > run.right && cx - run.right <= 8)) ? (cx < run.left ? "left" : "right") : null;
+  let backNote = "";
+  if (pastEnd) {
+    const back = pastEnd === "left" ? "right" : "left";
+    const mfE = (snap.drones.tl.y - 1) / 0.2;
+    const r = require("./arc.cjs").simulate(snap.level, cx, cy, snap.cat.dy || 0, snap.cat.height, back, mfE, { grounded: false });
+    if (r.outcome === "landed" && Math.abs(r.y - curY) < 0.01 && r.x >= run.left - 1 && r.x <= run.right + 1)
+      backNote = `Steering ${back} now lands the cat back on this floor. `;
+  }
   const runMsg =
-    `The floor you stand on is continuous from x ${Math.round(run.left)} to x ${Math.round(run.right)} at y ${curY}. ` +
+    (pastEnd
+      ? `The cat is in the air just past the ${pastEnd.toUpperCase()} end (x ${Math.round(pastEnd === "left" ? run.left : run.right)}) of the floor x ${Math.round(run.left)}..${Math.round(run.right)} at y ${curY}. ${backNote}`
+      : `The floor you stand on is continuous from x ${Math.round(run.left)} to x ${Math.round(run.right)} at y ${curY}. `) +
     // State that the objective is ALREADY on this floor, when the floor spans it
     // and the cat's own collision box standing here overlaps it. Without this the
     // prompt gives the objective as a two-axis offset whose vertical component
@@ -1615,9 +1635,9 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     // fails. Without it a greedy local policy walks toward the gem's x, finds no
     // drop there, and never leaves the floor.
     (mustDescend && anySurvivableEnd
-      ? `There is NO way down at your current x (the floor is unbroken here). The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `
+      ? `${pastEnd ? "" : "There is NO way down at your current x (the floor is unbroken here). "}The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `
       : mustDescend
-        ? `There is NO way down at your current x (the floor is unbroken here), and neither end of this floor is a survivable descent: stepping off either one drops the cat to the bottom laser. There is no safe way down from this floor. ` +
+        ? `${pastEnd ? "Neither" : "There is NO way down at your current x (the floor is unbroken here), and neither"} end of this floor is a survivable descent: stepping off either one drops the cat to the bottom laser. There is no safe way down from this floor. ` +
           // Claude round-2 (2026-09-25), change (D): a pure negative leaves the move
           // question with no escape to turn toward — measured on level 4's y=171 floor
           // the model answered 'left' (into the void) against this sentence ~30x per
