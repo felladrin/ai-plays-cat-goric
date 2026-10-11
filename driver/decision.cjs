@@ -1687,7 +1687,30 @@ function gemJumpWindow(snap, gem) {
   const run = runs.find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
   if (!run) return null;
   const w = runJumpWindow(snap.level, runs, run, gem, snap.cat.height);
-  return w === "walk" ? null : w;
+  if (w === "walk") return null;
+  // GEMJUMP_VERIFY (gated): the window comes from landingsFrom's envelope, which
+  // does not stop an arc at the first platform it meets (docs/dead-ends.md,
+  // interception). On L11 it said "a jump from this floor collects gem_c: jump and
+  // steer left from x 222..255" at floor x 222..274 at y 228, and no held jump_left
+  // from there touches gem_c: every one lands on floor x 181..233 at y 187 first
+  // (docs/results.md, 2026-10-11). Keep only launch x whose held jump, at the real
+  // clock, touches the gem's box; silent when none does.
+  if (w && process.env.GEMJUMP_VERIFY === "1") {
+    const { simulate } = require("./arc.cjs");
+    const mfG = (snap.drones.tl.y - 1) / 0.2;
+    const hit = (cx, cy) => cx < gem.x + GEM_HALF_HEIGHT && cx + 1 > gem.x - GEM_HALF_HEIGHT && cy - snap.cat.height < gem.y + GEM_HALF_HEIGHT && cy > gem.y - GEM_HALF_HEIGHT;
+    const ok = [];
+    for (let x = run.left; x <= run.right; x += 1.75) {
+      let touched = false;
+      simulate(snap.level, x, run.y, 0, snap.cat.height, `jump_${w.dir}`, mfG, { grounded: true, onFrame: (fx, fy) => { if (hit(fx, fy)) touched = true; } });
+      if (touched) ok.push(x);
+    }
+    // Removal only: re-ranging the true windows changed ~5,000 states on levels
+    // that already clear (blast 2026-10-11); the falsity is the window with no
+    // working launch at all.
+    if (!ok.length) return null;
+  }
+  return w;
 }
 
 // From which x on `run`, and steering which way, does one jump collect `gem`?
