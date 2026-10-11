@@ -907,3 +907,5 @@ The best wording only lowers L2's back-move to 0.62 and leaves L8's above 0.9: t
 **full4_s12 ladder: L0-L11 CLEARED, stopped at L12 `death_cap_unwinnable`** (same build and command, SEED=12). Deaths (log): L3 5, L6 11, L8 15, L10 1, L11 0, L12 30; the fourth seed to clear L0-L11 (7, 9, 11, 12; SEED 10 stopped on L8, SEEDs 6 and 7 can lose L2 to the edge dither).
 
 **full4_s13 ladder: L0-L11 CLEARED, stopped at L12 `death_cap`** (same build and command, SEED=13). Deaths: L0 0, L1 2, L2 0, L3 6, L4 0, L5 0, L6 1, L7 0, L8 8, L9 0, L10 1, L11 17, L12 30. 22,861 steps. Five seeds now clear L0-L11 on this stack (7, 9, 11, 12, 13); every one stops at L12.
+
+**GEM_FROM on isolated L12: no effect (0/6 cleared, both arms).** Command: `out/queue/gf_queue.sh` (full4 build: the full4 ladder flags plus `GEM_FROM=0|1`, `SEED=1..3 node run_level.cjs systemone 12`, levers-on-main ff52c84). Off: deaths 7/8/8, peak 1 gem each. On: deaths 8/8/8, peak 1 gem each. Every run hit the 3,000-step cap. Saying which floors collect gem_a does not get the lives off y108/y125; the blocker stays the descent.
