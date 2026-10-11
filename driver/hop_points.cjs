@@ -28,12 +28,12 @@ const SAME_FLOOR_Y = 40; // an objective within this of the floor, over its span
 function floorRun(plats, edgesOf, cx, cy, Y_TOL = 14) {
   let cur = null;
   for (const p of plats) {
-    const e = edgesOf(p[0]);
+    const e = edgesOf(p[0], p[1]);
     if (cx >= e.left && cx <= e.right && Math.abs(p[1] - cy) <= Y_TOL) { cur = p; break; }
   }
   if (!cur) return null;
   const curY = cur[1];
-  const sameY = plats.filter((p) => p[1] === curY).map((p) => edgesOf(p[0])).sort((a, b) => a.left - b.left);
+  const sameY = plats.filter((p) => p[1] === curY).map((p) => edgesOf(p[0], p[1])).sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
     if (runs.length && e.left <= runs[runs.length - 1].right) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
@@ -55,7 +55,7 @@ function higherLandings(level, run, curY, height, edgesOf, minJumpY = 1, catX = 
     for (const act of ["jump_left", "jump", "jump_right"]) {
       const r = simulate(level, x, curY, 0, height, act, minJumpY, { grounded: true });
       if (r.outcome !== "landed") continue;
-      const landed = plats.find((p) => Math.abs(p[1] - r.y) < 0.01 && r.x >= edgesOf(p[0]).left - 1 && r.x <= edgesOf(p[0]).right + 1);
+      const landed = plats.find((p) => Math.abs(p[1] - r.y) < 0.01 && r.x >= edgesOf(p[0], p[1]).left - 1 && r.x <= edgesOf(p[0], p[1]).right + 1);
       if (!landed) continue;
       if (landed[1] === curY && landed[0] >= run.left && landed[0] <= run.right) continue;
       if (landed[1] >= curY - 20) continue; // strictly higher only
@@ -105,7 +105,7 @@ function hopPoints(snap, objectives, edgesOf) {
       if (r.outcome !== "landed") continue;
       // Any platform that is not part of the floor we are standing on -- higher,
       // level, or lower. Landing back on our own run is not a hop.
-      const landed = plats.find((p) => Math.abs(p[1] - r.y) < 0.01 && r.x >= edgesOf(p[0]).left - 1 && r.x <= edgesOf(p[0]).right + 1);
+      const landed = plats.find((p) => Math.abs(p[1] - r.y) < 0.01 && r.x >= edgesOf(p[0], p[1]).left - 1 && r.x <= edgesOf(p[0], p[1]).right + 1);
       if (!landed) continue;
       if (landed[1] === curY && landed[0] >= run.left && landed[0] <= run.right) continue;
       // LEVEL OR ABOVE only. Going down off the ends of this floor is what
@@ -128,7 +128,7 @@ function hopPoints(snap, objectives, edgesOf) {
     if (!cands.length) continue;
     cands.sort((a, b) => a.dist - b.dist);
     const best = cands[0];
-    const e = edgesOf(best.plat[0]);
+    const e = edgesOf(best.plat[0], best.plat[1]);
     const dy = curY - best.plat[1];
     const rel = dy > 5 ? `${Math.round(dy)}px above this floor`
       : dy < -5 ? `${Math.round(-dy)}px below this floor`

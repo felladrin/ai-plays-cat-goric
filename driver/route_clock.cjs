@@ -198,7 +198,10 @@ function buildBase(level, gems) {
 }
 
 function getBase(level, gems) {
-  const key = level + ":" + JSON.stringify(gems);
+  // Under SHRINK_GEOM the runs are live, so the cached base must be keyed on them.
+  const live = require("./platform_live.cjs").enabled()
+    ? "|" + REACH.runsOf(level).map((r) => `${r.y}:${r.left.toFixed(1)}:${r.right.toFixed(1)}`).join(",") : "";
+  const key = level + ":" + JSON.stringify(gems) + live;
   if (!baseCache.has(key)) baseCache.set(key, buildBase(level, gems));
   return baseCache.get(key);
 }

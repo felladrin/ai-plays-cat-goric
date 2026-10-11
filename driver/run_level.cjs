@@ -31,6 +31,7 @@ const path = require("path");
 const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const REACH = require("./reachability.cjs");
+const LIVE = require("./platform_live.cjs");
 const { matchGemsToSpawn: matchAlive } = require("./decision.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
@@ -314,7 +315,13 @@ const r2 = (n) => Math.round(n * 100) / 100;
     }
   };
 
-  const readState = () => page.evaluate(() => window.bridge.getState());
+  // Every state read also sets the laser clock the live platform geometry reads
+  // (SHRINK_GEOM, platform_live.cjs); with the gate off the clock is unused.
+  const readState = async () => {
+    const s = await page.evaluate(() => window.bridge.getState());
+    LIVE.setClock((s.drones.tl.y - 1) / 0.2);
+    return s;
+  };
   const stepOnce = async () => {
     await page.evaluate((dt) => window.bridge.stepFrame(dt), DT);
     if (STEP_DELAY_MS) await sleep(STEP_DELAY_MS);

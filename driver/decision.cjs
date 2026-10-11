@@ -1268,9 +1268,11 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
 }
 
 // Platforms span x +/- 20 around their stored coordinate (observed geometry).
-function platformEdges(x) {
+function platformEdges(x, y) {
   const CFG = require("./physics.cjs");
-  const half = CFG.platformWidth / 2;
+  const LIVE = require("./platform_live.cjs");
+  if (LIVE.enabled() && y == null) throw new Error("platformEdges: SHRINK_GEOM=1 needs the platform's y");
+  const half = (CFG.platformWidth / 2) * LIVE.scale(x, y);
   return { left: x - half, right: x + half };
 }
 
@@ -1302,7 +1304,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // x 160..200 at both y=64 and y=200).
   let cur = null;
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (cx >= e.left && cx <= e.right && Math.abs(p[1] - cy) <= Y_TOL) { cur = p; break; }
   }
   if (!cur) {
@@ -1324,7 +1326,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // cat dies by walking off the end.
   const sameY = plats
     .filter((p) => p[1] === curY)
-    .map((p) => platformEdges(p[0]))
+    .map((p) => platformEdges(p[0], p[1]))
     .sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
@@ -1379,7 +1381,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // then listed only the two platforms BELOW, so walking off the right edge was the
   // reasonable answer to the state the model was given. 14 of 15 attempts died at
   // x=140..154 doing exactly that, at the launch point for the jump across.
-  const inThisRun = (p) => p[1] === curY && platformEdges(p[0]).right >= run.left && platformEdges(p[0]).left <= run.right;
+  const inThisRun = (p) => p[1] === curY && platformEdges(p[0], p[1]).right >= run.left && platformEdges(p[0], p[1]).left <= run.right;
   const others = plats.filter((p) => !inThisRun(p) && Math.abs(p[0] - cx) <= 140);
   const score = (p) => {
     const horiz = Math.abs(p[0] - cx);
@@ -1391,7 +1393,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   const near = others.sort((a, b) => score(a) - score(b)).slice(0, maxNear);
   const nearStr = near
     .map((p) => {
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       const dy = Math.round(p[1] - cy);
       const vert = dy === 0 ? "same height" : `${Math.abs(dy)}px ${dy > 0 ? "below" : "above"}`;
       // COL_FACTS: a platform whose span covers the cat's x is straight above or
@@ -1442,7 +1444,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
       if (p[1] <= curY) continue; // only platforms below
       const reach = framesToFall(p[1] - curY) * CFG.catWalkSpeed;
       const lo = endX - reach, hi = endX + reach;
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       if (e.right >= lo && e.left <= hi) reachable.push({ p, e });
     }
     if (!reachable.length)
@@ -1499,7 +1501,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     const esc = higherLandings(snap.level, run, curY, snap.cat.height, platformEdges, 1, cx);
     if (esc.size) {
       const e = esc.get(esc.keys().next().value);
-      escapeNote = { plat: e.plat, e: platformEdges(e.plat[0]), x: e.x, dir: e.dir };
+      escapeNote = { plat: e.plat, e: platformEdges(e.plat[0], e.plat[1]), x: e.x, dir: e.dir };
     }
   }
 
@@ -1966,14 +1968,14 @@ function routeAscentClause(snap, target) {
 function airborneMap(snap, plats, maxNear) {
   const cx = snap.cat.x, cy = snap.cat.y;
   const rel = (p) => {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     const dy = Math.round(p[1] - cy);
     const vert = dy === 0 ? "same height" : `${Math.abs(dy)}px ${dy > 0 ? "below" : "above"}`;
     const side = cx >= e.left && cx <= e.right ? `directly ${dy > 0 ? "below" : "above"} the cat`
       : cx < e.left ? `${Math.round(e.left - cx)}px to the right` : `${Math.round(cx - e.right)}px to the left`;
     return `x ${Math.round(e.left)}..${Math.round(e.right)} at y ${p[1]} (${vert}, ${side})`;
   };
-  const gap = (p) => { const e = platformEdges(p[0]); return cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0; };
+  const gap = (p) => { const e = platformEdges(p[0], p[1]); return cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0; };
   const below = plats.filter((p) => p[1] > cy).sort((a, b) => gap(a) + (a[1] - cy) * 0.3 - (gap(b) + (b[1] - cy) * 0.3));
   const above = plats.filter((p) => p[1] <= cy).sort((a, b) => gap(a) + (cy - a[1]) * 0.3 - (gap(b) + (cy - b[1]) * 0.3));
   const parts = [];
@@ -2005,13 +2007,13 @@ function descentPoints(snap, levelGems) {
   // Current floor platform (x within span, feet within Y_TOL of its top).
   let cur = null;
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (cx >= e.left && cx <= e.right && Math.abs(p[1] - cy) <= Y_TOL) { cur = p; break; }
   }
   if (!cur) return [];
   const curY = cur[1];
   // Merge contiguous same-y platforms into one run (L2's five y=64 platforms).
-  const sameY = plats.filter((p) => p[1] === curY).map((p) => platformEdges(p[0])).sort((a, b) => a.left - b.left);
+  const sameY = plats.filter((p) => p[1] === curY).map((p) => platformEdges(p[0], p[1])).sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
     if (runs.length && e.left <= runs[runs.length - 1].right) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
@@ -2033,7 +2035,7 @@ function descentPoints(snap, levelGems) {
     for (const p of plats) {
       if (p[1] <= curY) continue;
       const reach = framesToFall(p[1] - curY) * CFG.catWalkSpeed;
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       if (e.right >= endX - reach && e.left <= endX + reach) out.push({ p, e });
     }
     return out;
@@ -2098,9 +2100,9 @@ function descentPoints(snap, levelGems) {
       const { simulate } = require("./arc.cjs");
       const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (DEFENSIBLE-guarded)
       if (hr.outcome !== "landed") return envDesc; // fail open to old text
-      const hp = plats.find((p) => p[1] === Math.round(hr.y) && platformEdges(p[0]).left <= hr.x && platformEdges(p[0]).right >= hr.x);
+      const hp = plats.find((p) => p[1] === Math.round(hr.y) && platformEdges(p[0], p[1]).left <= hr.x && platformEdges(p[0], p[1]).right >= hr.x);
       if (!hp) return envDesc;
-      const he = platformEdges(hp[0]);
+      const he = platformEdges(hp[0], hp[1]);
       return `x ${Math.round(he.left)}..${Math.round(he.right)} at y ${Math.round(hr.y)}`;
     })();
     // Data-only field: the platform KEYS the step-off can land on (the same
@@ -2453,7 +2455,7 @@ function sideSnapNote(snap) {
   const cx = snap.cat.x, cy = snap.cat.y;
   const near = [];
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (p[1] <= cy) continue;                     // must be below the feet
     const gap = cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0;
     if (gap <= SIDE_SNAP_REACH_PX) near.push({ e, y: p[1], gap });

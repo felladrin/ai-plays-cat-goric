@@ -16,4 +16,11 @@ const PLATFORMS = [
   [[35, 62], [129, 123], [85, 249], [184, 252], [249, 197], [232, 136], [182, 63], [276, 90], [101, 25], [300, 270], [34, 134]],
   [[60, 178], [25, 178], [95, 178], [130, 178], [165, 178], [200, 178], [235, 178], [270, 178], [205, 178], [240, 178], [275, 178], [310, 178], [335, 178]],
 ];
-module.exports = { platforms: (li) => PLATFORMS[li] || [], all: PLATFORMS };
+// SHRINK_GEOM=1: a platform the lasers have destroyed is gone (platform_live.cjs).
+function platforms(li, mf) {
+  const all = PLATFORMS[li] || [];
+  const LIVE = require("./platform_live.cjs");
+  if (!LIVE.enabled()) return all;
+  return all.filter(([x, y]) => LIVE.scale(x, y, mf) > 0);
+}
+module.exports = { platforms, all: PLATFORMS };

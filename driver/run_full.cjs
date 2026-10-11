@@ -22,6 +22,7 @@ const { createOscHistory } = require("./decision.cjs");
 const { makeReplayDecideFn } = require("./replay.cjs");
 const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
+const LIVE = require("./platform_live.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
 const { createFallBlame, createMissBlame } = require("./fall_blame.cjs");
@@ -255,7 +256,13 @@ const VIDEO_DIR = CFG.outPath("video");
     window.bridge.resync();
   });
 
-  const readState = () => page.evaluate(() => window.bridge.getState());
+  // Every state read also sets the laser clock the live platform geometry reads
+  // (SHRINK_GEOM, platform_live.cjs); with the gate off the clock is unused.
+  const readState = async () => {
+    const s = await page.evaluate(() => window.bridge.getState());
+    LIVE.setClock((s.drones.tl.y - 1) / 0.2);
+    return s;
+  };
   // DEMO_KEEP rewrites the level transition inside the SAME page task as the
   // step. Doing it in a separate evaluate would let the compositor present the
   // frame the game painted for the skipped level, putting a flash of a level we
