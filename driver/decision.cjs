@@ -1479,6 +1479,21 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     return f;
   };
   const dropFrom = (endX, side) => {
+    // DESC_UPSNAP (gated): stepping off an end can touch the SIDE of a higher
+    // platform beside it and snap the cat up onto it. L12: off the left end of
+    // floor x 247..299 at y 125, held left lands on floor x 193..245 at y 108 in
+    // 3 frames (2px gap, 17px higher), while the text listed landings at y 209,
+    // 231, 243 (docs/results.md, 2026-10-11). Real clock, as the descentPoints gate.
+    if (process.env.DESC_UPSNAP === "1" && snap.onPlatform) {
+      const mfU = (snap.drones.tl.y - 1) / 0.2;
+      const u = require("./arc.cjs").simulate(snap.level, endX, curY, 0, snap.cat.height, side, mfU, { grounded: true });
+      if (u.outcome === "landed" && u.y < curY - 0.5) {
+        const up = plats.find((p) => Math.abs(p[1] - u.y) < 0.5 && platformEdges(p[0], p[1]).left - 1 <= u.x && platformEdges(p[0], p[1]).right + 1 >= u.x);
+        const ue = up ? platformEdges(up[0], up[1]) : null;
+        return { survivable: false, carriesTarget: false, lands: [],
+          text: `snap up onto platform ${ue ? `x ${Math.round(ue.left)}..${Math.round(ue.right)} ` : ""}at y ${Math.round(u.y)}: stepping off there touches that platform's side, so it is not a way down` };
+      }
+    }
     const reachable = [];
     for (const p of plats) {
       if (p[1] <= curY) continue; // only platforms below
@@ -1677,7 +1692,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     // fails. Without it a greedy local policy walks toward the gem's x, finds no
     // drop there, and never leaves the floor.
     (mustDescend && anySurvivableEnd
-      ? `${pastEnd ? "" : "There is NO way down at your current x (the floor is unbroken here). "}The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `
+      ? `${pastEnd ? "" : "There is NO way down at your current x (the floor is unbroken here). "}${process.env.DESC_UPSNAP === "1" && dropLeft.survivable !== dropRight.survivable ? `The ONLY descent from this floor is at its ${dropLeft.survivable ? "left" : "right"} end: x ${Math.round(dropLeft.survivable ? run.left : run.right)}. ` : `The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `}`
       : mustDescend
         ? `${pastEnd ? "Neither" : "There is NO way down at your current x (the floor is unbroken here), and neither"} end of this floor is a survivable descent: stepping off either one drops the cat to the bottom laser. There is no safe way down from this floor. ` +
           // Claude round-2 (2026-09-25), change (D): a pure negative leaves the move
@@ -2181,6 +2196,14 @@ function descentPoints(snap, levelGems) {
         return r.outcome === "landed";
       };
       if (!survives(side) && !survives("none")) continue;
+      // DESC_UPSNAP: an end whose held step-off snaps the cat UP onto a
+      // neighbour's side is not a descent. Only that case: requiring every held
+      // step-off to land lower also dropped descents that work by steering back
+      // under the floor (L2's left end), 30,280 objective calls in the blast.
+      if (process.env.DESC_UPSNAP === "1") {
+        const u = simulate(snap.level, endX, curY, 0, snap.cat.height, side, mfNow, { grounded: true });
+        if (u.outcome === "landed" && u.y < curY - 0.5) continue;
+      }
     }
     // Landings are NOT annotated with the gem that sits on them. It was tried:
     // it did not move the descent choice it was aimed at (level 4 with gem_a
