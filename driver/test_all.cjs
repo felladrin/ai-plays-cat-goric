@@ -24,6 +24,7 @@ const SUITES = [
   "test_portal_prune_l13.cjs",
   "test_build_flags.cjs",
   "test_shrink_geom.cjs",
+  "test_collect_window.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.
