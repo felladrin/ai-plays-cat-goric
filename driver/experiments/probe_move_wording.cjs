@@ -1,6 +1,7 @@
 // Move-call wording probe: render the real move call at one state (airborne
 // allowed, with an explicit dy), apply each candidate edit to the state text
-// (a list of [find, replace] pairs; find must occur exactly once), and ask the
+// (a list of [find, replace] pairs; find must occur exactly once; a find of
+// "@crit:<move>" replaces that option's label instead), and ask the
 // endpoint for the move distribution. Prints the probability of each move.
 //   node experiments/probe_move_wording.cjs <spec.json>
 // spec: {"level":2,"x":71.5,"y":64.4,"dy":0.4,"mf":81,"onPlatform":false,"objective":"gem_c",
@@ -25,12 +26,20 @@ const client = makeClient({ baseUrl: CFG.SYSTEMONE_BASE_URL, path: "/v1/systemon
   console.log(`L${spec.level} (${spec.x},${spec.y}) dy ${spec.dy} mf ${mf} obj ${spec.objective}; moves ${Object.keys(call.questions.move.criteria).join(",")}`);
   for (const [name, edits] of Object.entries(spec.candidates)) {
     let state = call.state;
+    const questions = JSON.parse(JSON.stringify(call.questions));
     for (const [find, rep] of edits) {
+      // "@crit:<move>" replaces that option's label instead of editing the state text.
+      if (find.startsWith("@crit:")) {
+        const k = find.slice(6);
+        if (!(k in questions.move.criteria)) throw new Error(`${name}: no option ${k}`);
+        questions.move.criteria[k] = rep;
+        continue;
+      }
       const n = state.split(find).length - 1;
       if (n !== 1) throw new Error(`${name}: "${find.slice(0, 50)}" occurs ${n} times`);
       state = state.replace(find, rep);
     }
-    const r = await client.classify(state, call.questions);
+    const r = await client.classify(state, questions);
     const p = {};
     for (const [k, v] of Object.entries(r.move.probabilities)) p[k] = +v.toFixed(3);
     console.log(name.padEnd(16), JSON.stringify(p));
