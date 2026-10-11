@@ -1504,8 +1504,23 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     }
     if (!reachable.length)
       return { survivable: false, carriesTarget: false, lands: [], text: `fall to the bottom laser (no platform reachable by steering)` };
+    // COLLECT_LAND (gated): name a landing the objective can be collected from,
+    // when this floor cannot collect it. L12: every life walked right along
+    // x 58..215 at y 165 toward gem_a and flipped to jump_right (0.47 vs right
+    // 0.43) into the y108/y125 pocket, while stepping off the right end lands on
+    // x 220..272 at y 231, a gem_a collector (docs/results.md, 2026-10-11).
+    // Opportunity framing, as COLLECT_WINDOW (loss framing lowered the target).
+    let collects = () => false;
+    if (process.env.COLLECT_LAND === "1" && snap.onPlatform && target && target.name) {
+      const REACHc = require("./reachability.cjs");
+      const cruns = REACHc.runsOf(snap.level);
+      const runAt = (x, y) => cruns.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+      const here = runAt(cx, curY);
+      if (here && !runJumpWindow(snap.level, cruns, here, target, snap.cat.height))
+        collects = (r) => { const q = runAt(r.p[0], r.p[1]); return !!q && !!runJumpWindow(snap.level, cruns, q, target, snap.cat.height); };
+    }
     const best = reachable
-      .map((r) => `steer to land on platform x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}`)
+      .map((r) => `steer to land on platform x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}${collects(r) ? ` (${target.name} can be collected from there)` : ""}`)
       .join("; ");
     // Does ANY landing reachable from this end stand under the objective? Horizontal
     // containment in the run's x span, plus THE vertical-overlap rule (above) applied
@@ -1517,6 +1532,16 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   };
   const dropLeft = dropFrom(run.left, "left");
   const dropRight = dropFrom(run.right, "right");
+  // COLLECT_LAND names a side only when ONE end leads to a collector: with both
+  // ends marked it says nothing about direction (blast: 4,813 of L2's 6,696
+  // changed states were two-sided).
+  if (target && target.name) {
+    const mark = ` (${target.name} can be collected from there)`;
+    if (dropLeft.text.includes(mark) && dropRight.text.includes(mark)) {
+      dropLeft.text = dropLeft.text.split(mark).join("");
+      dropRight.text = dropRight.text.split(mark).join("");
+    }
+  }
   // GAP_DROP (gated, off by default): the gap note argues against the productive
   // move when the objective is reached by DROPPING off the warned edge, not by
   // crossing the gap (L4 @93: removing the note flips left 0.26 -> 0.92; the
