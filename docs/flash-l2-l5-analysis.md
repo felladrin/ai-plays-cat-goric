@@ -266,3 +266,36 @@ variants likely, which keeps the cat at the key where it dies again. Winners
 spend fewer decisions there and escape before priorDeaths compounds (their max
 T at the key is also 3.0 but reached later). The lever is how escalation treats
 a 2-key oscillation, not the prompt text.
+
+## ESC_FIX offline effect estimate (2026-10-10)
+
+`experiments/sim_osc_fix.cjs` drives decide() itself over the measured L3 @246
+dither: archived move distribution (left .578 right .017 jump .109 jump_left
+.138 jump_right .158, gapstack_s6 idx at mf 77), transition model from the
+archive (left/right/jump stay at the key; jump_left steps off the left end and
+DIES - 10/10 ladder deaths this class; jump_right lands @200 = escape),
+exploring from the start (revisits past threshold), 2000 trials/arm, SEED=12345:
+
+| arm | escape | death | mean decisions at key | median | p90 | max |
+|---|---|---|---|---|---|---|
+| gate-off | 53.3% | 46.7% | 2.5 | 2 | 5 | 19 |
+| gate-on | 50.6% | 49.4% | 1.9 | 2 | 3 | 4 |
+
+The gate does NOT change the escape/death ratio - escape odds are set by the
+relative mass of jump_right vs jump_left, which the exclusion leaves untouched
+(it excludes the STAYING moves). What it changes is DWELL: worst-case time at
+the dither key drops from 19 decisions to 4, p90 from 5 to 3. On L3 dwell is
+the clock trap (every frame at @246 closes the laser window for the @200 climb,
+see the winners-vs-losers section), so the live prediction is: same per-jump
+odds, materially earlier escapes, lower mf at the climb. The live A/B should
+read decisions-at-key and mf-at-escape, not just clear rate. The sim's stay
+model is conservative (real `left` walks off the edge and dies, so real
+gate-off dwell is longer than 2.5).
+
+ESC_FIX test coverage added on main after PR #7 (test_osc_fix.cjs): runner wiring
+pins (both runners create the tracker behind the identical gate; no clear may sit
+between the sliding-window visitCounts rebuild - that would erase the evidence
+every decision; every clear is null-guarded), and the exhaustive-exclusion
+property: 100 samples at a marked key never draw a marked move UNLESS every move
+with mass is marked (the never-sample-an-empty-set fallback; the first version of
+this assertion was wrong precisely because it missed that documented fallback).

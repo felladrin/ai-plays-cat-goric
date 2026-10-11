@@ -282,7 +282,7 @@ function main() {
         errors.push(`${call.functionName}#${call.siteIdx} (line ${call.lineNum}): Real-clock site has SIMULATE_CLOCK_AUDIT marker (should only be on constant sites)`);
         failed++;
       } else {
-        if (auditEntry && (auditEntry.clock === "0" || auditEntry.clock === "1")) {
+        if (auditEntry && /^\d+$/.test(auditEntry.clock)) {
           errors.push(`${call.functionName}#${call.siteIdx} (line ${call.lineNum}): Code has real clock (${clockArg}) but audit doc says constant ${auditEntry.clock}`);
           failed++;
         } else {
@@ -324,7 +324,7 @@ function main() {
   const constantSitesInCode = callsWithIndex.filter(c => !isRealClockArg(extractClockArg(c.fullCall), namedConstants));
   const constantLinesInCode = new Set(constantSitesInCode.map(c => c.lineNum));
   const constantLinesInAudit = new Set(Array.from(auditVerdicts.values())
-    .filter(v => v.clock === "0" || v.clock === "1")
+    .filter(v => /^\d+$/.test(v.clock))
     .map(v => v.lineNum));
 
   console.log(`\nConstant sites in code: ${constantSitesInCode.length}`);
@@ -350,7 +350,7 @@ function main() {
   const realClockSitesInCode = callsWithIndex.filter(c => isRealClockArg(extractClockArg(c.fullCall), namedConstants));
   const realClockLinesInCode = new Set(realClockSitesInCode.map(c => c.lineNum));
   const realClockLinesInAudit = new Set(Array.from(auditVerdicts.values())
-    .filter(v => v.clock !== "0" && v.clock !== "1")
+    .filter(v => !/^\d+$/.test(v.clock))
     .map(v => v.lineNum));
 
   console.log(`Real-clock sites in code: ${realClockSitesInCode.length}`);

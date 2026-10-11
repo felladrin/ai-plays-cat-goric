@@ -24,6 +24,8 @@ const { stepBatch } = require("./cadence.cjs");
 const { heldActionIsSafe } = require("./arc.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
+const { createFallBlame, createMissBlame } = require("./fall_blame.cjs");
+const { matchGemsToSpawn: matchAlive } = require("./decision.cjs");
 
 const URL = CFG.HARNESS_URL;
 const DT = 1 / 60;
@@ -380,6 +382,10 @@ const VIDEO_DIR = CFG.outPath("video");
   // STORE cap bounds the whole store; the render cap (DEATH_HISTORY_SHOWN=3 in
   // decision.cjs) limits lines per position in the prompt. Do not conflate them.
   const deathHistory = [];
+  // FALL_BLAME: fall-edge tracker for the current life (see fall_blame.cjs).
+  const fallBlame = createFallBlame();
+  // MISS_BLAME: closest-approach-to-live-gem tracker (see fall_blame.cjs).
+  const missBlame = createMissBlame();
   // Per-attempt revisit counts; see run_level.cjs for why this clears on reset.
   const visitCounts = new Map();
   // ESC_FIX: per-attempt 2-key oscillation memory; identical to run_level.cjs.
@@ -444,6 +450,17 @@ const VIDEO_DIR = CFG.outPath("video");
     else if (pre && pre.laser) cause = "was hit by the laser";
     // Also blames the grounded decision that launched the arc; see deathEntries.
     deathHistory.push(...deathEntries(chosen, launch, cause));
+    // FALL_BLAME: also blame the edge this life fell from, when it died on a
+    // floor it reached by falling and never got back up (truthful history line).
+    // Raw PRE cat y - never the rounded key - so 241-vs-240 rounding cannot flip
+    // a comparison.
+    // MISS_BLAME: name the closest approach to each gem still alive at death.
+    for (const line of missBlame.lines()) deathHistory.push(line);
+    if (pre && pre.cathy != null) {
+      for (const b of fallBlame.blameKeys(pre.cathy)) deathHistory.push(...deathEntries({ key: b.key, action: b.move }, null, cause));
+    }
+    fallBlame.reset();
+    missBlame.reset();
     while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
   };
 
@@ -517,6 +534,8 @@ const VIDEO_DIR = CFG.outPath("video");
       }
       await shot(`level${String(s.level).padStart(2, "0")}_entry`);
       deathHistory.length = 0;
+      fallBlame.reset();
+      missBlame.reset();
       visitCounts.clear();
       if (oscHistory) oscHistory.clear();
       visitWin.length = 0;
@@ -547,6 +566,11 @@ const VIDEO_DIR = CFG.outPath("video");
       // with run_level.cjs through run_stats.unwinnableDeath.
       const w = unwinnableDeath(s, lastGrounded, posKey10(s.cat.x, s.cat.y));
       deathHistory.push(...deathEntries(w, null, w.cause));
+      // FALL_BLAME: the reset fires with the cat on its death floor; raw y.
+      for (const b of fallBlame.blameKeys(s.cat.y)) deathHistory.push(...deathEntries({ key: b.key, action: b.move }, null, w.cause));
+      for (const line of missBlame.lines()) deathHistory.push(line);
+      fallBlame.reset();
+      missBlame.reset();
       while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
       L.deathLog.push({
         wallMs: Date.now(),
@@ -710,6 +734,10 @@ const VIDEO_DIR = CFG.outPath("video");
     // the last mid-air tweak, or the launch key never accumulates a prior death
     // and exploration never activates where the causal choice was made.
     if (s.onPlatform) lastGrounded = { key: posKey10(s.cat.x, s.cat.y), action: d.move };
+    if (s.onPlatform) fallBlame.observe(posKey10(s.cat.x, s.cat.y), s.cat.y, d.move);
+    // MISS_BLAME: observes EVERY decision (grounded or airborne): the closest
+    // approach to a gem is usually mid-air (the L6 fork).
+    missBlame.observeAll(s.cat.x, s.cat.y, d.move, matchAlive(levelGems, s.gemPositions));
 
     // Execute the chosen move, then return to the top to RE-DECIDE.
     //  - Grounded + jump: step 1 to launch, then switch to the airborne cadence.
@@ -745,8 +773,13 @@ const VIDEO_DIR = CFG.outPath("video");
   // current decision's execution should stop (event consumed).
   async function handleEvent(cur) {
     if (cur.lastEvent.type === "advance") {
-      // Level cleared; the outer loop will screenshot the new level entry.
-      return false; // not a stop; outer loop handles transition
+      // END the batch: the frames left in this decision's batch would otherwise
+      // run inside the NEW level with the OLD action held (measured on
+      // cap30_s6: every level's first decision landed at mf 5-6 grounded
+      // instead of run_level's mf 0 airborne, and the clock-phase shift
+      // flipped walk-vs-jump at the L4 gap edge). The outer loop still owns
+      // the transition bookkeeping; this only stops the spill.
+      return true;
     }
     if (cur.lastEvent.type === "death") {
       const L = ensureLevel(cur.level);

@@ -34,6 +34,7 @@ const REACH = require("./reachability.cjs");
 const { matchGemsToSpawn: matchAlive } = require("./decision.cjs");
 const { VISIT_WINDOW } = require("./decision.cjs");
 const { installFlush, deathEntries, unwinnableDeath, buildFlags } = require("./run_stats.cjs");
+const { createFallBlame, createMissBlame } = require("./fall_blame.cjs");
 const { STALL_WINDOW, STALL_MAX_DISTINCT } = require("./stall_window.cjs");
 
 // The overlay payload. decide() reports samplingTemperature/priorDeathsHere while
@@ -331,6 +332,9 @@ const r2 = (n) => Math.round(n * 100) / 100;
     decideMemo.lockedObjective = null;
     lastGroundedKey = null;
     lastGroundedMove = null;
+    lastGroundedY = null;
+    fallBlame.reset();
+    missBlame.reset();
   };
 
   let steps = 0;
@@ -365,6 +369,10 @@ const r2 = (n) => Math.round(n * 100) / 100;
   // (position, action) pairs that led to death, fed back into the state so a
   // deterministic retry sees a different input. Capped to protect the token budget.
   const deathHistory = [];
+  // FALL_BLAME: fall-edge tracker for the current life (see fall_blame.cjs).
+  const fallBlame = createFallBlame();
+  // MISS_BLAME: closest-approach-to-live-gem tracker (see fall_blame.cjs).
+  const missBlame = createMissBlame();
   // Visits to each 10px position within the CURRENT attempt. Cleared on every
   // reset, because a livelock is per-attempt: carrying counts across a death
   // would make a fresh attempt start already "stuck" at its own spawn point.
@@ -385,6 +393,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
   // Cleared with the rest of the per-attempt state on reset.
   let lastGroundedKey = null;
   let lastGroundedMove = null;
+  let lastGroundedY = null; // raw y of the last grounded decision (fall-blame comparisons)
   // STORE cap (not the render cap). The render cap (DEATH_HISTORY_SHOWN=3, in
   // decision.cjs) limits lines per position in the prompt; this bounds the whole
   // store. Must be large enough that a level looping at multiple spots never evicts
@@ -425,7 +434,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
   // detected the canvas already shows the respawn. Keep a rolling frame from the
   // last decision and preserve THAT as the pre-death picture.
   const PRE = `${SHOT_DIR}/_pre.png`;
-  const recordDeath = async (key, action, explicitCause, launch) => {
+  const recordDeath = async (key, action, explicitCause, launch, deathY) => {
     const deathWallMs = Date.now();
     const n = String(deathHistory.length + 1).padStart(2, "0");
     const at = key.replace(/[^0-9-]/g, "_");
@@ -446,6 +455,13 @@ const r2 = (n) => Math.round(n * 100) / 100;
       }
     } catch (_) {}
     deathHistory.push(...deathEntries({ key, action }, launch, cause));
+    // FALL_BLAME: also blame the edge this life fell from, when it died on a
+    // floor it reached by falling and never got back up (truthful history line).
+    if (deathY != null) {
+      for (const b of fallBlame.blameKeys(deathY)) deathHistory.push(...deathEntries({ key: b.key, action: b.move }, null, cause));
+    }
+    // MISS_BLAME: name the closest approach to each gem still alive at death.
+    for (const line of missBlame.lines()) deathHistory.push(line);
     deathLog.push({ wallMs: deathWallMs, step: steps, key, action, cause });
     while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
     visitCounts.clear();
@@ -454,6 +470,9 @@ const r2 = (n) => Math.round(n * 100) / 100;
     decideMemo.lockedObjective = null;
     lastGroundedKey = null;
     lastGroundedMove = null;
+    lastGroundedY = null;
+    fallBlame.reset();
+    missBlame.reset();
   };
 
   function movingFrames(s) {
@@ -570,7 +589,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
             `blaming the decision at ${lastGroundedKey} and resetting`
           );
           await recordDeath(lastGroundedKey, lastGroundedMove || "(route)",
-            `this route stranded ${stranded.map((g) => g.name).join(" and ")}: no way back up`);
+            `this route stranded ${stranded.map((g) => g.name).join(" and ")}: no way back up`, undefined, s.cat.y);
           await doReset();
           deaths += 1;
           continue;
@@ -589,7 +608,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
       const w = unwinnableDeath(s,
         lastGroundedKey ? { key: lastGroundedKey, action: lastGroundedMove || "(route)" } : null,
         `${Math.round(s.cat.x / 10) * 10},${Math.round(s.cat.y / 10) * 10}`);
-      await recordDeath(w.key, w.action, w.cause);
+      await recordDeath(w.key, w.action, w.cause, undefined, s.cat.y);
       await doReset();
       deaths += 1;
       continue;
@@ -721,7 +740,12 @@ const r2 = (n) => Math.round(n * 100) / 100;
     if (s.onPlatform) {
       lastGroundedKey = chosenKey;
       lastGroundedMove = d.move;
+      lastGroundedY = s.cat.y;
+      fallBlame.observe(chosenKey, s.cat.y, d.move);
     }
+    // MISS_BLAME: observes EVERY decision (grounded or airborne): the closest
+    // approach to a gem is usually mid-air (the L6 fork).
+    missBlame.observeAll(s.cat.x, s.cat.y, d.move, matchAlive(levelGems, s.gemPositions));
 
     // Clear the bridge's ring so getTrace below returns THIS batch's frames and
     // not the tail of the previous one. Safe unconditionally: the ring is write-only
@@ -739,7 +763,8 @@ const r2 = (n) => Math.round(n * 100) / 100;
           if (res.ev === "death") {
             deaths += 1;
             await recordDeath(chosenKey, d.move, undefined,
-              lastGroundedKey ? { key: lastGroundedKey, action: lastGroundedMove } : null);
+              lastGroundedKey ? { key: lastGroundedKey, action: lastGroundedMove } : null,
+              lastGroundedY != null ? lastGroundedY : s.cat.y);
           }
           return { done: true };
         }

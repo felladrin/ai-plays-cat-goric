@@ -19,7 +19,7 @@ node run_full.cjs clef                 # the whole ladder
 npm test                               # the driver's default suite
 ```
 
-`npm test` runs the whole suite: `test_all.cjs` runs every suite in one command and exits non-zero on anything unexpected. The suites are `test_death_history.cjs`, `test_descent_gate.cjs`, `test_sticky_objective.cjs`, `test_cfg_shadow.cjs`, `test_burn_facts.cjs`, `test_obj_sample.cjs`, `test_descent_laser_gate.cjs`, `test_simulate_clock.cjs`, `test_runner_parity.cjs`, `test_osc_fix.cjs`, and `test_objective_lock.cjs` — the last is red by design (it gates re-enabling the same-floor note) and `test_all.cjs` pins that exact expectation.
+`npm test` runs the whole suite: `test_all.cjs` runs every suite in one command and exits non-zero on anything unexpected. The suites are `test_death_history.cjs`, `test_descent_gate.cjs`, `test_sticky_objective.cjs`, `test_cfg_shadow.cjs`, `test_burn_facts.cjs`, `test_obj_sample.cjs`, `test_descent_laser_gate.cjs`, `test_simulate_clock.cjs`, `test_runner_parity.cjs`, `test_osc_fix.cjs`, and `test_objective_lock.cjs` — the last is red by design (it gates re-enabling the same-floor note) and `test_all.cjs` pins that exact expectation. The list also includes `test_fall_blame.cjs` (fall-edge death blame, `FALL_BLAME` gate), `test_miss_blame.cjs` (closest-approach death blame, `MISS_BLAME` gate), `test_gap_jump.cjs` (same-height crossing fact with the route gate, `GAP_JUMP`), and `test_gate_off_values.cjs` (each new gate is off at `=0`, as the older gates are).
 
 ## Structure
 
