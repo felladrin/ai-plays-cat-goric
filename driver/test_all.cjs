@@ -18,6 +18,7 @@ const SUITES = [
   "test_fall_blame.cjs",
   "test_miss_blame.cjs",
   "test_gap_jump.cjs",
+  "test_gate_off_values.cjs",
   "test_census_pins.cjs",
   "test_empty_objective_menu.cjs",
   "test_portal_prune_l13.cjs",

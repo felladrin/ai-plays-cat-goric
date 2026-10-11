@@ -1870,7 +1870,7 @@ function jumpUpNote(snap, target) {
 // the directed graph (same BFS + isCollector as routeAscentClause): on the route,
 // not just possible.
 function gapJumpNote(snap, g, cur, here, target) {
-  if (!process.env.GAP_JUMP || !cur) return "";
+  if (process.env.GAP_JUMP !== "1" || !cur) return "";
   if (!target || !target.name || !/^gem_/.test(target.name)) return "";
   const REACH = require("./reachability.cjs");
   const nbr = (k) => g.runs.find((r) => REACH.runKey(r) === k);

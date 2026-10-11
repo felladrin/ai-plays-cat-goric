@@ -25,7 +25,7 @@ function createFallBlame() {
     reset() { prev = null; falls.length = 0; ys.length = 0; },
     // Extra blame entries for a death at floor y (empty when the gate is off).
     blameKeys(deathY) {
-      if (!process.env.FALL_BLAME) return [];
+      if (process.env.FALL_BLAME !== "1") return [];
       const cands = [];
       for (const f of falls) {
         if (f.fromY >= deathY) continue;                             // died at or above the edge
@@ -52,7 +52,7 @@ function createMissBlame() {
   return {
     // Call on EVERY decision (grounded or airborne). liveGems: [{name,x,y}].
     observeAll(x, y, move, liveGems) {
-      if (!process.env.MISS_BLAME) return;
+      if (process.env.MISS_BLAME !== "1") return;
       lastAlive = (liveGems || []).map((g) => g.name);
       for (const g of liveGems || []) {
         const d = Math.hypot(x - g.x, y - g.y);
@@ -62,7 +62,7 @@ function createMissBlame() {
     },
     // History lines for the gems still alive at the last observation.
     lines() {
-      if (!process.env.MISS_BLAME) return [];
+      if (process.env.MISS_BLAME !== "1") return [];
       const out = [];
       for (const name of lastAlive) {
         const b = best[name];
