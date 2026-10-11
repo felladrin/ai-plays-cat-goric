@@ -22,6 +22,7 @@
 // This is observable geometry, computed from the same validated simulator the
 // hold and the hop points use. It states a property; it does not pick a route.
 const { simulate, platformBoxes } = require("./arc.cjs");
+const LIVE = require("./platform_live.cjs");
 const CFG = require("./physics.cjs");
 const PLAT_TOP = CFG.platformHeight * CFG.platformAnchorY;
 const PLAT_BOT = CFG.platformHeight * (1 - CFG.platformAnchorY);
@@ -36,7 +37,25 @@ const graphCache = new Map(); // level -> {runs, edges}
 // within a single platform's span never reaches an end, so the graph reported no
 // route to the lower gems -- on a level the cat clears routinely.
 function runsOf(level) {
-  const plats = platformBoxes(level);
+  const runs = mergeRuns(platformBoxes(level));
+  if (!LIVE.enabled()) return runs;
+  // SHRINK_GEOM: the extents are live, but each run keeps the name of the
+  // full-width floor it belongs to, so death-history keys, the sticky objective
+  // and the blame lines do not change identity while a floor shrinks.
+  const nominal = mergeRuns(platformBoxes(level, 0));
+  const pieces = new Map();
+  for (const r of runs) {
+    const n = nominal.find((m) => m.y === r.y && r.left >= m.left - 0.01 && r.right <= m.right + 0.01);
+    if (!n) throw new Error(`runsOf: live run ${r.left}..${r.right}@${r.y} lies outside every full-width floor`);
+    const base = runKey(n);
+    const k = (pieces.get(base) || 0) + 1;
+    pieces.set(base, k);
+    r.floorId = k === 1 ? base : `${base}#${k}`;
+  }
+  return runs;
+}
+
+function mergeRuns(plats) {
   const byY = new Map();
   for (const p of plats) {
     if (!byY.has(p.y)) byY.set(p.y, []);
@@ -54,7 +73,7 @@ function runsOf(level) {
   return runs;
 }
 
-function runKey(r) { return `floor(${Math.round(r.left)}..${Math.round(r.right)}@${r.y})`; }
+function runKey(r) { return r.floorId || `floor(${Math.round(r.left)}..${Math.round(r.right)}@${r.y})`; }
 
 function runAt(level, x, y, tol = 14) {
   for (const r of runsOf(level)) {
@@ -145,8 +164,10 @@ function landingsFrom(level, runs, x0, y0, jump, catHeight, opts) {
 }
 
 function graph(level, catHeight) {
-  if (graphCache.has(level)) return graphCache.get(level);
   const runs = runsOf(level);
+  // Under SHRINK_GEOM the graph depends on the live widths, so the cache key does too.
+  const ck = LIVE.enabled() ? `${level}|${runs.map((r) => `${runKey(r)}:${r.left.toFixed(1)}:${r.right.toFixed(1)}`).join(",")}` : level;
+  if (graphCache.has(ck)) return graphCache.get(ck);
   const edges = {};
   for (const r of runs) {
     const out = new Set();
@@ -160,7 +181,7 @@ function graph(level, catHeight) {
     edges[runKey(r)] = [...out];
   }
   const g = { runs, edges };
-  graphCache.set(level, g);
+  graphCache.set(ck, g);
   return g;
 }
 

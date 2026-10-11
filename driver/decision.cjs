@@ -596,7 +596,16 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
     // Overshot: the gem is on the cat's current platform but on the far side from
     // where the cat entered, i.e. the cat has passed its x. Flag when the gem is
     // behind relative to the staircase direction (gem x < cat x on same platform).
-    const overshot = curPlat && Math.abs(gx - curPlat[0]) <= 20 && dx < 0;
+    // OVERSHOT_FIX (gated): "on your platform" also needs the gem at the floor's
+    // height, as `walk` above does. Without it, L11's gem_c (191,212), 25px UNDER
+    // floor x 181..233 at y 187, was "BEHIND you to the left on your platform",
+    // while its only way in is the left descent onto floor x 145..197 at y 231;
+    // the cat took the right descent instead, every time (docs/results.md, 2026-10-11).
+    const overshot = curPlat && Math.abs(gx - curPlat[0]) <= 20 && dx < 0 &&
+      // Narrow: only the gem BELOW the floor is excluded. The full height test
+      // (as `walk`) changed 16,641 objective calls on every level, most of them
+      // gems above the floor, and stays untested.
+      (process.env.OVERSHOT_FIX !== "1" || gy <= snap.cat.y);
     const flags = [];
     if (walk) flags.push("REACHABLE BY WALKING (no jump needed)");
     if (overshot) flags.push("OVERSHOT: it is BEHIND you to the left on your platform");
@@ -860,6 +869,14 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
         if (e) { e.line += URGENCY; e.crit += URGENCY; }
       }
     }
+  }
+  // COLLECT_WINDOW (gated): a gem collectable only in a window far shorter than its deadline (collect_window.cjs).
+  const mfObj = (snap.drones.tl.y - 1) / 0.2;
+  for (const g of alive) {
+    const fkObj = snap.onPlatform ? require("./reachability.cjs").platformKeyUnder(snap.level, snap.cat.x, snap.cat.y) : null;
+    const w = require("./collect_window.cjs").collectWindowLine(snap.level, g.x, g.y, mfObj, alive.filter((o) => o !== g), fkObj);
+    const e = w && presented.find((p) => p.name === g.name);
+    if (e) { e.line += w; e.crit += w; }
   }
   for (const e of presented) {
     lines.push(e.line);
@@ -1183,6 +1200,14 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       const gj = gemJumpNote(snap, target.name, target) || (GEM_FROM ? gemFromNote(snap, target.name, target) : "");
       if (gj) lines.push(gj.trim());
     }
+    // PORTAL_JUMP (gated): the gem jump-window note, for the exit portal. L6's first
+    // life held all three gems by mf 211 and spent 230 frames on the floors right of
+    // the portal: a jump_left from the left end of floor x 241..293 at y 176 passes
+    // through the portal box, and nothing said so (docs/results.md, 2026-10-11).
+    if (process.env.PORTAL_JUMP === "1" && objectiveName === "portal") {
+      const pj = portalJumpNote(snap, target);
+      if (pj) lines.push(pj);
+    }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
     if (process.env.CORRIDOR_CLOCK === "1") {
@@ -1268,9 +1293,19 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
 }
 
 // Platforms span x +/- 20 around their stored coordinate (observed geometry).
-function platformEdges(x) {
+// GAP_WALK (gated): the cat walks 1.75px per frame and collides as a 1px column,
+// so a gap of up to 1px between same-height platforms is walked across; the
+// reachability graph already merges such platforms (reachability.cjs, `+ 1`).
+// The prompt's own merge did not, and told the cat on L12's floor x 58..215 at
+// y 165 that "The gap to the RIGHT is 1px wide; walking cannot cross it, only a
+// jump can" (docs/results.md, 2026-10-11).
+function WALK_GAP() { return process.env.GAP_WALK === "1" ? 1 : 0; }
+
+function platformEdges(x, y) {
   const CFG = require("./physics.cjs");
-  const half = CFG.platformWidth / 2;
+  const LIVE = require("./platform_live.cjs");
+  if (LIVE.enabled() && y == null) throw new Error("platformEdges: SHRINK_GEOM=1 needs the platform's y");
+  const half = (CFG.platformWidth / 2) * LIVE.scale(x, y);
   return { left: x - half, right: x + half };
 }
 
@@ -1302,7 +1337,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // x 160..200 at both y=64 and y=200).
   let cur = null;
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (cx >= e.left && cx <= e.right && Math.abs(p[1] - cy) <= Y_TOL) { cur = p; break; }
   }
   if (!cur) {
@@ -1324,15 +1359,22 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // cat dies by walking off the end.
   const sameY = plats
     .filter((p) => p[1] === curY)
-    .map((p) => platformEdges(p[0]))
+    .map((p) => platformEdges(p[0], p[1]))
     .sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
-    if (runs.length && e.left <= runs[runs.length - 1].right) {
+    if (runs.length && e.left <= runs[runs.length - 1].right + WALK_GAP()) {
       runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
     } else runs.push({ left: e.left, right: e.right });
   }
-  const run = runs.find((r) => cx >= r.left && cx <= r.right) || runs[0];
+  // FLOOR_FIX (gated): past every run's end (airborne off an edge), runs[0] named
+  // a floor on the far side of the level as "the floor you stand on" (L8, cat at
+  // x 340 by floor x 284..336 at y 42: the prompt described x 24..76; docs/results.md).
+  // Take the nearest run instead.
+  const run = runs.find((r) => cx >= r.left && cx <= r.right) ||
+    (process.env.FLOOR_FIX === "1"
+      ? runs.reduce((a, b) => (Math.min(Math.abs(cx - a.left), Math.abs(cx - a.right)) <= Math.min(Math.abs(cx - b.left), Math.abs(cx - b.right)) ? a : b))
+      : runs[0]);
 
   // S1 (Claude r3, 2026-09-25): a descent block is only on the route when some
   // floor BELOW this one still keeps the objective's floor reachable.
@@ -1379,7 +1421,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // then listed only the two platforms BELOW, so walking off the right edge was the
   // reasonable answer to the state the model was given. 14 of 15 attempts died at
   // x=140..154 doing exactly that, at the launch point for the jump across.
-  const inThisRun = (p) => p[1] === curY && platformEdges(p[0]).right >= run.left && platformEdges(p[0]).left <= run.right;
+  const inThisRun = (p) => p[1] === curY && platformEdges(p[0], p[1]).right >= run.left && platformEdges(p[0], p[1]).left <= run.right;
   const others = plats.filter((p) => !inThisRun(p) && Math.abs(p[0] - cx) <= 140);
   const score = (p) => {
     const horiz = Math.abs(p[0] - cx);
@@ -1391,7 +1433,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   const near = others.sort((a, b) => score(a) - score(b)).slice(0, maxNear);
   const nearStr = near
     .map((p) => {
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       const dy = Math.round(p[1] - cy);
       const vert = dy === 0 ? "same height" : `${Math.abs(dy)}px ${dy > 0 ? "below" : "above"}`;
       // COL_FACTS: a platform whose span covers the cat's x is straight above or
@@ -1437,12 +1479,27 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     return f;
   };
   const dropFrom = (endX, side) => {
+    // DESC_UPSNAP (gated): stepping off an end can touch the SIDE of a higher
+    // platform beside it and snap the cat up onto it. L12: off the left end of
+    // floor x 247..299 at y 125, held left lands on floor x 193..245 at y 108 in
+    // 3 frames (2px gap, 17px higher), while the text listed landings at y 209,
+    // 231, 243 (docs/results.md, 2026-10-11). Real clock, as the descentPoints gate.
+    if (process.env.DESC_UPSNAP === "1" && snap.onPlatform) {
+      const mfU = (snap.drones.tl.y - 1) / 0.2;
+      const u = require("./arc.cjs").simulate(snap.level, endX, curY, 0, snap.cat.height, side, mfU, { grounded: true });
+      if (u.outcome === "landed" && u.y < curY - 0.5) {
+        const up = plats.find((p) => Math.abs(p[1] - u.y) < 0.5 && platformEdges(p[0], p[1]).left - 1 <= u.x && platformEdges(p[0], p[1]).right + 1 >= u.x);
+        const ue = up ? platformEdges(up[0], up[1]) : null;
+        return { survivable: false, carriesTarget: false, lands: [],
+          text: `snap up onto platform ${ue ? `x ${Math.round(ue.left)}..${Math.round(ue.right)} ` : ""}at y ${Math.round(u.y)}: stepping off there touches that platform's side, so it is not a way down` };
+      }
+    }
     const reachable = [];
     for (const p of plats) {
       if (p[1] <= curY) continue; // only platforms below
       const reach = framesToFall(p[1] - curY) * CFG.catWalkSpeed;
       const lo = endX - reach, hi = endX + reach;
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       if (e.right >= lo && e.left <= hi) reachable.push({ p, e });
     }
     if (!reachable.length)
@@ -1499,7 +1556,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     const esc = higherLandings(snap.level, run, curY, snap.cat.height, platformEdges, 1, cx);
     if (esc.size) {
       const e = esc.get(esc.keys().next().value);
-      escapeNote = { plat: e.plat, e: platformEdges(e.plat[0]), x: e.x, dir: e.dir };
+      escapeNote = { plat: e.plat, e: platformEdges(e.plat[0], e.plat[1]), x: e.x, dir: e.dir };
     }
   }
 
@@ -1536,8 +1593,37 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
       dropMsg += `Of the two, only stepping off the ${dropLeft.carriesTarget ? "LEFT" : "RIGHT"} end lands on a floor carrying ${target.name}. `;
     }
   }
+  // AIR_EDGE (gated): airborne just past an end of this floor, the grounded block
+  // was false ("the floor you stand on", "NO way down at your current x") at the
+  // state where the model steered back onto the floor it had just left (L2 left
+  // end, (71.5,64.4): `right` p 0.72, repeated until the laser; docs/results.md).
+  // Say where the cat is, and whether steering back lands it on this floor again
+  // (arc.simulate at the real clock), instead.
+  // AIR_EDGE=1 adds the steer-back sentence (backfired live: it raised the move
+  // back onto the floor); =2 only corrects the floor text; =3 states the height
+  // the cat has to fall below before steering back clears the floor.
+  const AIR_EDGE = ["1", "2", "3"].includes(process.env.AIR_EDGE) ? process.env.AIR_EDGE : null;
+  // "just past" only: within 8px of the end and 14px (Y_TOL) of the floor's height.
+  const pastEnd = AIR_EDGE && !snap.onPlatform && Math.abs(cy - curY) <= Y_TOL &&
+    ((cx < run.left && run.left - cx <= 8) || (cx > run.right && cx - run.right <= 8)) ? (cx < run.left ? "left" : "right") : null;
+  let backNote = "";
+  if (pastEnd) {
+    const back = pastEnd === "left" ? "right" : "left";
+    const mfE = (snap.drones.tl.y - 1) / 0.2;
+    const r = require("./arc.cjs").simulate(snap.level, cx, cy, snap.cat.dy || 0, snap.cat.height, back, mfE, { grounded: false });
+    if (r.outcome === "landed" && Math.abs(r.y - curY) < 0.01 && r.x >= run.left - 1 && r.x <= run.right + 1) {
+      // Clear of the floor's box once the head is below its bottom: the side-snap
+      // test is the 1px head-to-feet column against the 52x16 sprite (arc.cjs).
+      const CFGp = require("./physics.cjs");
+      const clearY = Math.ceil(curY + CFGp.platformHeight * (1 - CFGp.platformAnchorY) + snap.cat.height);
+      if (AIR_EDGE === "1") backNote = `Steering ${back} now lands the cat back on this floor. `;
+      else if (AIR_EDGE === "3") backNote = `The cat has to fall below y ${clearY} before steering ${back}, or it lands back on the floor it just left. `;
+    }
+  }
   const runMsg =
-    `The floor you stand on is continuous from x ${Math.round(run.left)} to x ${Math.round(run.right)} at y ${curY}. ` +
+    (pastEnd
+      ? `The cat is in the air just past the ${pastEnd.toUpperCase()} end (x ${Math.round(pastEnd === "left" ? run.left : run.right)}) of the floor x ${Math.round(run.left)}..${Math.round(run.right)} at y ${curY}. ${backNote}`
+      : `The floor you stand on is continuous from x ${Math.round(run.left)} to x ${Math.round(run.right)} at y ${curY}. `) +
     // State that the objective is ALREADY on this floor, when the floor spans it
     // and the cat's own collision box standing here overlaps it. Without this the
     // prompt gives the objective as a two-axis offset whose vertical component
@@ -1606,9 +1692,9 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     // fails. Without it a greedy local policy walks toward the gem's x, finds no
     // drop there, and never leaves the floor.
     (mustDescend && anySurvivableEnd
-      ? `There is NO way down at your current x (the floor is unbroken here). The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `
+      ? `${pastEnd ? "" : "There is NO way down at your current x (the floor is unbroken here). "}${process.env.DESC_UPSNAP === "1" && dropLeft.survivable !== dropRight.survivable ? `The ONLY descent from this floor is at its ${dropLeft.survivable ? "left" : "right"} end: x ${Math.round(dropLeft.survivable ? run.left : run.right)}. ` : `The ONLY descents from this floor are at its ends: x ${Math.round(run.left)} (left) and x ${Math.round(run.right)} (right). `}`
       : mustDescend
-        ? `There is NO way down at your current x (the floor is unbroken here), and neither end of this floor is a survivable descent: stepping off either one drops the cat to the bottom laser. There is no safe way down from this floor. ` +
+        ? `${pastEnd ? "Neither" : "There is NO way down at your current x (the floor is unbroken here), and neither"} end of this floor is a survivable descent: stepping off either one drops the cat to the bottom laser. There is no safe way down from this floor. ` +
           // Claude round-2 (2026-09-25), change (D): a pure negative leaves the move
           // question with no escape to turn toward — measured on level 4's y=171 floor
           // the model answered 'left' (into the void) against this sentence ~30x per
@@ -1649,18 +1735,41 @@ function gemJumpWindow(snap, gem) {
   const run = runs.find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
   if (!run) return null;
   const w = runJumpWindow(snap.level, runs, run, gem, snap.cat.height);
-  return w === "walk" ? null : w;
+  if (w === "walk") return null;
+  // GEMJUMP_VERIFY (gated): the window comes from landingsFrom's envelope, which
+  // does not stop an arc at the first platform it meets (docs/dead-ends.md,
+  // interception). On L11 it said "a jump from this floor collects gem_c: jump and
+  // steer left from x 222..255" at floor x 222..274 at y 228, and no held jump_left
+  // from there touches gem_c: every one lands on floor x 181..233 at y 187 first
+  // (docs/results.md, 2026-10-11). Keep only launch x whose held jump, at the real
+  // clock, touches the gem's box; silent when none does.
+  if (w && process.env.GEMJUMP_VERIFY === "1") {
+    const { simulate } = require("./arc.cjs");
+    const mfG = (snap.drones.tl.y - 1) / 0.2;
+    const hit = (cx, cy) => cx < gem.x + GEM_HALF_HEIGHT && cx + 1 > gem.x - GEM_HALF_HEIGHT && cy - snap.cat.height < gem.y + GEM_HALF_HEIGHT && cy > gem.y - GEM_HALF_HEIGHT;
+    const ok = [];
+    for (let x = run.left; x <= run.right; x += 1.75) {
+      let touched = false;
+      simulate(snap.level, x, run.y, 0, snap.cat.height, `jump_${w.dir}`, mfG, { grounded: true, onFrame: (fx, fy) => { if (hit(fx, fy)) touched = true; } });
+      if (touched) ok.push(x);
+    }
+    // Removal only: re-ranging the true windows changed ~5,000 states on levels
+    // that already clear (blast 2026-10-11); the falsity is the window with no
+    // working launch at all.
+    if (!ok.length) return null;
+  }
+  return w;
 }
 
 // From which x on `run`, and steering which way, does one jump collect `gem`?
 // "walk" when walking already collects it; null when nothing does.
-function runJumpWindow(level, runs, run, gem, catHeight) {
+function runJumpWindow(level, runs, run, gem, catHeight, half = GEM_HALF_HEIGHT) {
   const REACH = require("./reachability.cjs");
   // Gems above this floor only. landingsFrom does not stop a trajectory at the
   // first platform it meets (docs/dead-ends.md, interception), so for a gem below
   // it reported jumps that land on a floor in between (level 7's opening: false).
-  if (gem.y + GEM_HALF_HEIGHT >= run.y) return null;
-  const box = { left: gem.x - GEM_HALF_HEIGHT, right: gem.x + GEM_HALF_HEIGHT, top: gem.y - GEM_HALF_HEIGHT, bot: gem.y + GEM_HALF_HEIGHT };
+  if (gem.y + half >= run.y) return null;
+  const box = { left: gem.x - half, right: gem.x + half, top: gem.y - half, bot: gem.y + half };
   // Silent when walking already collects it, along the floor or off either end:
   // there the note only argued for a needless jump (level 7's opening walk).
   if (gem.x >= run.left && gem.x <= run.right && targetOverlapsFloor(gem, run.y, catHeight)) return "walk";
@@ -1806,6 +1915,24 @@ function corridorClause(snap, target) {
   const N = Math.round(bottleneck - mf);
   if (N <= 0 || N > 120) return "";
   return ` The route to ${target.name} closes in about ${N} frames: one of its jumps is laser-blocked after that.`;
+}
+
+// The portal's collision object is 32x32 about its centre (getPortalCollisionObject),
+// live once three gems are collected, which is when the portal is the objective.
+const PORTAL_HALF = 16;
+function portalJumpNote(snap, portal) {
+  if (!snap.onPlatform || jumpHitsCeiling(snap)) return "";
+  const REACH = require("./reachability.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const run = runs.find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
+  if (!run) return "";
+  const w = runJumpWindow(snap.level, runs, run, portal, snap.cat.height, PORTAL_HALF);
+  if (!w || w === "walk") return "";
+  const cx = Math.round(snap.cat.x);
+  const where = cx < w.lo ? ` The cat is at x ${cx}, left of that range: walk right into it before jumping.`
+    : cx > w.hi ? ` The cat is at x ${cx}, right of that range: walk left into it before jumping.`
+    : ` The cat is at x ${cx}, inside that range.`;
+  return `A jump from this floor reaches the exit portal: jump and steer ${w.dir} from x ${w.lo}..${w.hi}.${where}`;
 }
 
 function gemJumpNote(snap, name, gem) {
@@ -1966,14 +2093,14 @@ function routeAscentClause(snap, target) {
 function airborneMap(snap, plats, maxNear) {
   const cx = snap.cat.x, cy = snap.cat.y;
   const rel = (p) => {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     const dy = Math.round(p[1] - cy);
     const vert = dy === 0 ? "same height" : `${Math.abs(dy)}px ${dy > 0 ? "below" : "above"}`;
     const side = cx >= e.left && cx <= e.right ? `directly ${dy > 0 ? "below" : "above"} the cat`
       : cx < e.left ? `${Math.round(e.left - cx)}px to the right` : `${Math.round(cx - e.right)}px to the left`;
     return `x ${Math.round(e.left)}..${Math.round(e.right)} at y ${p[1]} (${vert}, ${side})`;
   };
-  const gap = (p) => { const e = platformEdges(p[0]); return cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0; };
+  const gap = (p) => { const e = platformEdges(p[0], p[1]); return cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0; };
   const below = plats.filter((p) => p[1] > cy).sort((a, b) => gap(a) + (a[1] - cy) * 0.3 - (gap(b) + (b[1] - cy) * 0.3));
   const above = plats.filter((p) => p[1] <= cy).sort((a, b) => gap(a) + (cy - a[1]) * 0.3 - (gap(b) + (cy - b[1]) * 0.3));
   const parts = [];
@@ -2005,19 +2132,26 @@ function descentPoints(snap, levelGems) {
   // Current floor platform (x within span, feet within Y_TOL of its top).
   let cur = null;
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (cx >= e.left && cx <= e.right && Math.abs(p[1] - cy) <= Y_TOL) { cur = p; break; }
   }
   if (!cur) return [];
   const curY = cur[1];
   // Merge contiguous same-y platforms into one run (L2's five y=64 platforms).
-  const sameY = plats.filter((p) => p[1] === curY).map((p) => platformEdges(p[0])).sort((a, b) => a.left - b.left);
+  const sameY = plats.filter((p) => p[1] === curY).map((p) => platformEdges(p[0], p[1])).sort((a, b) => a.left - b.left);
   const runs = [];
   for (const e of sameY) {
-    if (runs.length && e.left <= runs[runs.length - 1].right) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
+    if (runs.length && e.left <= runs[runs.length - 1].right + WALK_GAP()) runs[runs.length - 1].right = Math.max(runs[runs.length - 1].right, e.right);
     else runs.push({ left: e.left, right: e.right });
   }
-  const run = runs.find((r) => cx >= r.left && cx <= r.right) || runs[0];
+  // FLOOR_FIX (gated): past every run's end (airborne off an edge), runs[0] named
+  // a floor on the far side of the level as "the floor you stand on" (L8, cat at
+  // x 340 by floor x 284..336 at y 42: the prompt described x 24..76; docs/results.md).
+  // Take the nearest run instead.
+  const run = runs.find((r) => cx >= r.left && cx <= r.right) ||
+    (process.env.FLOOR_FIX === "1"
+      ? runs.reduce((a, b) => (Math.min(Math.abs(cx - a.left), Math.abs(cx - a.right)) <= Math.min(Math.abs(cx - b.left), Math.abs(cx - b.right)) ? a : b))
+      : runs[0]);
   // General rule: is any REMAINING objective below this floor? Include the portal
   // when all gems are collected. "Below" = clearly lower on screen than the floor.
   const alive = matchGemsToSpawn(levelGems, snap.gemPositions);
@@ -2033,7 +2167,7 @@ function descentPoints(snap, levelGems) {
     for (const p of plats) {
       if (p[1] <= curY) continue;
       const reach = framesToFall(p[1] - curY) * CFG.catWalkSpeed;
-      const e = platformEdges(p[0]);
+      const e = platformEdges(p[0], p[1]);
       if (e.right >= endX - reach && e.left <= endX + reach) out.push({ p, e });
     }
     return out;
@@ -2062,6 +2196,14 @@ function descentPoints(snap, levelGems) {
         return r.outcome === "landed";
       };
       if (!survives(side) && !survives("none")) continue;
+      // DESC_UPSNAP: an end whose held step-off snaps the cat UP onto a
+      // neighbour's side is not a descent. Only that case: requiring every held
+      // step-off to land lower also dropped descents that work by steering back
+      // under the floor (L2's left end), 30,280 objective calls in the blast.
+      if (process.env.DESC_UPSNAP === "1") {
+        const u = simulate(snap.level, endX, curY, 0, snap.cat.height, side, mfNow, { grounded: true });
+        if (u.outcome === "landed" && u.y < curY - 0.5) continue;
+      }
     }
     // Landings are NOT annotated with the gem that sits on them. It was tried:
     // it did not move the descent choice it was aimed at (level 4 with gem_a
@@ -2098,9 +2240,9 @@ function descentPoints(snap, levelGems) {
       const { simulate } = require("./arc.cjs");
       const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { grounded: true }); // SIMULATE_CLOCK_AUDIT: constant 0 (DEFENSIBLE-guarded)
       if (hr.outcome !== "landed") return envDesc; // fail open to old text
-      const hp = plats.find((p) => p[1] === Math.round(hr.y) && platformEdges(p[0]).left <= hr.x && platformEdges(p[0]).right >= hr.x);
+      const hp = plats.find((p) => p[1] === Math.round(hr.y) && platformEdges(p[0], p[1]).left <= hr.x && platformEdges(p[0], p[1]).right >= hr.x);
       if (!hp) return envDesc;
-      const he = platformEdges(hp[0]);
+      const he = platformEdges(hp[0], hp[1]);
       return `x ${Math.round(he.left)}..${Math.round(he.right)} at y ${Math.round(hr.y)}`;
     })();
     // Data-only field: the platform KEYS the step-off can land on (the same
@@ -2453,7 +2595,7 @@ function sideSnapNote(snap) {
   const cx = snap.cat.x, cy = snap.cat.y;
   const near = [];
   for (const p of plats) {
-    const e = platformEdges(p[0]);
+    const e = platformEdges(p[0], p[1]);
     if (p[1] <= cy) continue;                     // must be below the feet
     const gap = cx < e.left ? e.left - cx : cx > e.right ? cx - e.right : 0;
     if (gap <= SIDE_SNAP_REACH_PX) near.push({ e, y: p[1], gap });

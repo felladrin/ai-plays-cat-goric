@@ -23,6 +23,14 @@ const SUITES = [
   "test_empty_objective_menu.cjs",
   "test_portal_prune_l13.cjs",
   "test_build_flags.cjs",
+  "test_shrink_geom.cjs",
+  "test_collect_window.cjs",
+  "test_air_edge.cjs",
+  "test_portal_jump.cjs",
+  "test_gemjump_verify.cjs",
+  "test_floor_text.cjs",
+  "test_overshot_fix.cjs",
+  "test_desc_upsnap.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.

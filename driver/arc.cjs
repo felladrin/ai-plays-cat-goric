@@ -18,15 +18,18 @@
 // the path is fine. Anything uncertain returns null and the caller asks the model.
 const CFG = require("./physics.cjs");
 const LEVELS = require("./level_data.cjs");
+const LIVE = require("./platform_live.cjs");
 
 const PLAT_HALF_W = CFG.platformWidth / 2;
 const PLAT_TOP_OFF = CFG.platformHeight * CFG.platformAnchorY;
 const PLAT_BOT_OFF = CFG.platformHeight * (1 - CFG.platformAnchorY);
 
-function platformBoxes(level) {
-  return LEVELS.platforms(level).map(([x, y]) => ({
+// `mf` defaults to the decision's laser clock; widths are live only under
+// SHRINK_GEOM=1 (platform_live.cjs), full width otherwise.
+function platformBoxes(level, mf) {
+  return LEVELS.platforms(level, mf).map(([x, y]) => ({
     x, y,
-    left: x - PLAT_HALF_W, right: x + PLAT_HALF_W,
+    left: x - PLAT_HALF_W * LIVE.scale(x, y, mf), right: x + PLAT_HALF_W * LIVE.scale(x, y, mf),
     top: y - PLAT_TOP_OFF, bot: y + PLAT_BOT_OFF,
   }));
 }
@@ -45,7 +48,8 @@ function overlaps(cx, cy, catHeight, p) {
 function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
   const maxFrames = opts.maxFrames || 240;
   const onFrame = opts.onFrame || null;
-  const plats = platformBoxes(level);
+  const shrink = LIVE.enabled();
+  let plats = platformBoxes(level, movingFrames);
   const goLeft = action.includes("left");
   const goRight = action.includes("right");
   const wantJump = action.includes("jump");
@@ -54,6 +58,8 @@ function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
   let mf = movingFrames;
 
   for (let f = 1; f <= maxFrames; f++) {
+    // Platforms keep shrinking as the lasers advance during the arc.
+    if (shrink && f > 1) plats = platformBoxes(level, mf);
     // Moving horizontally un-grounds the cat; the collision pass may re-ground it.
     if (goLeft || goRight) grounded = false;
     if (dy >= 0) {
@@ -112,12 +118,12 @@ function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
     const left = 1 + CFG.droneSpeed * mf + CFG.maxLaserHalfSize;
     const right = 359 - CFG.droneSpeed * mf - CFG.maxLaserHalfSize;
     if (y >= bottom || y - catHeight <= top || x <= left || x >= right) {
-      return { outcome: "laser", x, y, frames: f };
+      return { outcome: "laser", x, y, frames: f, mf };
     }
-    if (grounded && f > 1 && (jumped || !wantJump)) return { outcome: "landed", x, y, frames: f };
-    if (y > 420) return { outcome: "void", x, y, frames: f };
+    if (grounded && f > 1 && (jumped || !wantJump)) return { outcome: "landed", x, y, frames: f, mf };
+    if (y > 420) return { outcome: "void", x, y, frames: f, mf };
   }
-  return { outcome: "timeout", x, y, frames: maxFrames };
+  return { outcome: "timeout", x, y, frames: maxFrames, mf };
 }
 
 // Which platform is at (x, y)? Returns a stable key, or null.
@@ -145,8 +151,8 @@ function platformKeyAt(level, x, y, tol = 14) {
 // same frame, and then be reported as "landed" at a position with nothing under
 // it. That is a real failure, not a near miss, so the question has to be asked
 // of the returned point.
-function standingOn(level, x, y, catHeight) {
-  const plats = platformBoxes(level);
+function standingOn(level, x, y, catHeight, mf) {
+  const plats = platformBoxes(level, mf);
   for (let i = 0; i < plats.length; i++) {
     if (overlaps(x, y, catHeight, plats[i])) return true;
   }
@@ -182,7 +188,7 @@ function heldActionIsSafe(snap, action) {
   // held jump_left jumps again on landing, so no jump in flight was ever safe.
   const air = process.env.HOLD_FIX === "1" ? action.replace(/^jump_?/, "") || "none" : action;
   const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, air, mf, { grounded: false });
-  if (r.outcome === "landed") return standingOn(snap.level, r.x, r.y, h);
+  if (r.outcome === "landed") return standingOn(snap.level, r.x, r.y, h, LIVE.enabled() ? r.mf : undefined);
   if (r.outcome === "laser" || r.outcome === "void") return false;
   return null;
 }
