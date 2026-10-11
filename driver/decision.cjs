@@ -1190,6 +1190,14 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       const gj = gemJumpNote(snap, target.name, target) || (GEM_FROM ? gemFromNote(snap, target.name, target) : "");
       if (gj) lines.push(gj.trim());
     }
+    // PORTAL_JUMP (gated): the gem jump-window note, for the exit portal. L6's first
+    // life held all three gems by mf 211 and spent 230 frames on the floors right of
+    // the portal: a jump_left from the left end of floor x 241..293 at y 176 passes
+    // through the portal box, and nothing said so (docs/results.md, 2026-10-11).
+    if (process.env.PORTAL_JUMP === "1" && objectiveName === "portal") {
+      const pj = portalJumpNote(snap, target);
+      if (pj) lines.push(pj);
+    }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
     if (process.env.CORRIDOR_CLOCK === "1") {
@@ -1683,13 +1691,13 @@ function gemJumpWindow(snap, gem) {
 
 // From which x on `run`, and steering which way, does one jump collect `gem`?
 // "walk" when walking already collects it; null when nothing does.
-function runJumpWindow(level, runs, run, gem, catHeight) {
+function runJumpWindow(level, runs, run, gem, catHeight, half = GEM_HALF_HEIGHT) {
   const REACH = require("./reachability.cjs");
   // Gems above this floor only. landingsFrom does not stop a trajectory at the
   // first platform it meets (docs/dead-ends.md, interception), so for a gem below
   // it reported jumps that land on a floor in between (level 7's opening: false).
-  if (gem.y + GEM_HALF_HEIGHT >= run.y) return null;
-  const box = { left: gem.x - GEM_HALF_HEIGHT, right: gem.x + GEM_HALF_HEIGHT, top: gem.y - GEM_HALF_HEIGHT, bot: gem.y + GEM_HALF_HEIGHT };
+  if (gem.y + half >= run.y) return null;
+  const box = { left: gem.x - half, right: gem.x + half, top: gem.y - half, bot: gem.y + half };
   // Silent when walking already collects it, along the floor or off either end:
   // there the note only argued for a needless jump (level 7's opening walk).
   if (gem.x >= run.left && gem.x <= run.right && targetOverlapsFloor(gem, run.y, catHeight)) return "walk";
@@ -1835,6 +1843,24 @@ function corridorClause(snap, target) {
   const N = Math.round(bottleneck - mf);
   if (N <= 0 || N > 120) return "";
   return ` The route to ${target.name} closes in about ${N} frames: one of its jumps is laser-blocked after that.`;
+}
+
+// The portal's collision object is 32x32 about its centre (getPortalCollisionObject),
+// live once three gems are collected, which is when the portal is the objective.
+const PORTAL_HALF = 16;
+function portalJumpNote(snap, portal) {
+  if (!snap.onPlatform || jumpHitsCeiling(snap)) return "";
+  const REACH = require("./reachability.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const run = runs.find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
+  if (!run) return "";
+  const w = runJumpWindow(snap.level, runs, run, portal, snap.cat.height, PORTAL_HALF);
+  if (!w || w === "walk") return "";
+  const cx = Math.round(snap.cat.x);
+  const where = cx < w.lo ? ` The cat is at x ${cx}, left of that range: walk right into it before jumping.`
+    : cx > w.hi ? ` The cat is at x ${cx}, right of that range: walk left into it before jumping.`
+    : ` The cat is at x ${cx}, inside that range.`;
+  return `A jump from this floor reaches the exit portal: jump and steer ${w.dir} from x ${w.lo}..${w.hi}.${where}`;
 }
 
 function gemJumpNote(snap, name, gem) {

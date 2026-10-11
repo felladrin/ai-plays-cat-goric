@@ -32,7 +32,7 @@ const arc = simulate(snap.level, snap.cat.x, run.y, 0, snap.cat.height, dir, mf,
 **What it gates:** The "lands" clause when the optimistic envelope reaches nothing — describes the held-arc outcome (laser/void/landed) so the model knows the jump is fatal.
 **Verdict:** DEFENSIBLE. Uses live drone positions. This is the laser-survival check for the jump the model might actually pick.
 
-### 4. `descentPoints` gate — line 2090
+### 4. `descentPoints` gate — line 2116
 ```js
 const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
 const survives = (hold) => {
@@ -99,7 +99,7 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 
 ---
 
-### 10. `exitDirection` jump arc — line 2282 (real clock; added with EXIT_FACT, 2026-10-10)
+### 10. `exitDirection` jump arc — line 2308 (real clock; added with EXIT_FACT, 2026-10-10)
 ```js
 const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, { grounded: true });
 ```
@@ -109,7 +109,7 @@ const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, {
 
 ---
 
-### 11. `reachHolds` steering traces — line 2370 (real clock; added with REACH_FACT, 2026-10-10)
+### 11. `reachHolds` steering traces — line 2396 (real clock; added with REACH_FACT, 2026-10-10)
 ```js
 const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
   grounded: false, onFrame: ... });
@@ -127,25 +127,25 @@ const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold
 | 1 | `floorBelow` | 402 | real `mf` | DEFENSIBLE |
 | 2 | `jumpIsNoop` | 447 | real `mf` | DEFENSIBLE |
 | 3 | `jumpLandingNote` empty | 1025 | real `mf` | DEFENSIBLE |
-| 4 | `descentPoints` gate | 2090 | real `mfNow` | DEFENSIBLE |
+| 4 | `descentPoints` gate | 2116 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 795 | `0` | **LATENT-DEFECT** |
 | 6 | `jumpLandingNote` held scan | 990 | real `mfNow` | **FIXED** |
 | 7 | `walkOffFatalNote` walk | 1099 | `0` | **LATENT-DEFECT** |
 | 8 | `walkOffFatalNote` jump | 1101 | `0` | **LATENT-DEFECT** |
-| 9 | `descentPoints` LANDDESC_HELD | 2128 | `0` | DEFENSIBLE-guarded |
-| 10 | `exitDirection` jump arc | 2282 | real `mf` (caller) | DEFENSIBLE |
-| 11 | `reachHolds` steering traces | 2370 | real `mf` (caller) | DEFENSIBLE |
-| 12 | `negHoldTargets` touch scan | 2412 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
-| 13 | `negHold` held-arc traces | 2435 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
-| 14 | `exitDirection` v1.1 step-off simulate | 2318 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
-| 15 | `ccFirstLaser` close scan | 1758 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
-| 16 | `ccJumpCollects` collector probe | 1770 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
-| 17 | `platformMap` AIR_EDGE steer-back | 1562 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
+| 9 | `descentPoints` LANDDESC_HELD | 2154 | `0` | DEFENSIBLE-guarded |
+| 10 | `exitDirection` jump arc | 2308 | real `mf` (caller) | DEFENSIBLE |
+| 11 | `reachHolds` steering traces | 2396 | real `mf` (caller) | DEFENSIBLE |
+| 12 | `negHoldTargets` touch scan | 2438 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
+| 13 | `negHold` held-arc traces | 2461 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
+| 14 | `exitDirection` v1.1 step-off simulate | 2344 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
+| 15 | `ccFirstLaser` close scan | 1766 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
+| 16 | `ccJumpCollects` collector probe | 1778 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
+| 17 | `platformMap` AIR_EDGE steer-back | 1570 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
 
 **Latent defects: 4** (sites 5, 7, 8, 16). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
 ### 15/16 — CORRIDOR_CLOCK sites (added 2026-10-10)
-`ccFirstLaser` (line 1758) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1770) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
+`ccFirstLaser` (line 1766) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1778) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
 
 ---
 

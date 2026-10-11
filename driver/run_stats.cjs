@@ -62,7 +62,7 @@ function deathEntries(chosen, launch, cause) {
 // run file (docs/rules.md #5: a result names its build). ATTRIB is on unless "0".
 const BUILD_FLAGS = ["ATTRIB", "PRUNE_FATAL", "PRUNE_NOOP", "MOVE_INSTR", "AIR_FACTS", "COL_FACTS",
   "LAND_FACTS", "JUMP_FACTS", "GEM_FACTS", "GEM_FROM", "HOLD_FIX", "STICKY_OBJECTIVE", "ROUTE_FIRST", "GOALS_ONLY", "JEV_STRICT", "BURN_FACTS", "OBJ_SAMPLE", "WPT_ARGMAX", "SEED", "EXIT_FACT", "REACH_FACT", "RISE_LABEL", "NEG_HOLD",
-  "PORTAL_DESC", "GAP_DROP", "FALL_BLAME", "MISS_BLAME", "GAP_JUMP", "CORRIDOR_CLOCK", "ROUTE_ASCENT", "LANDDESC_HELD", "COUNTDOWN", "ESC_FIX", "STALL_EXPLORE", "SHRINK_GEOM", "COLLECT_WINDOW", "AIR_EDGE"];
+  "PORTAL_DESC", "GAP_DROP", "FALL_BLAME", "MISS_BLAME", "GAP_JUMP", "CORRIDOR_CLOCK", "ROUTE_ASCENT", "LANDDESC_HELD", "COUNTDOWN", "ESC_FIX", "STALL_EXPLORE", "SHRINK_GEOM", "COLLECT_WINDOW", "AIR_EDGE", "PORTAL_JUMP"];
 function buildFlags() {
   const out = {};
   for (const f of BUILD_FLAGS) if (process.env[f] !== undefined) out[f] = process.env[f];
