@@ -596,7 +596,16 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
     // Overshot: the gem is on the cat's current platform but on the far side from
     // where the cat entered, i.e. the cat has passed its x. Flag when the gem is
     // behind relative to the staircase direction (gem x < cat x on same platform).
-    const overshot = curPlat && Math.abs(gx - curPlat[0]) <= 20 && dx < 0;
+    // OVERSHOT_FIX (gated): "on your platform" also needs the gem at the floor's
+    // height, as `walk` above does. Without it, L11's gem_c (191,212), 25px UNDER
+    // floor x 181..233 at y 187, was "BEHIND you to the left on your platform",
+    // while its only way in is the left descent onto floor x 145..197 at y 231;
+    // the cat took the right descent instead, every time (docs/results.md, 2026-10-11).
+    const overshot = curPlat && Math.abs(gx - curPlat[0]) <= 20 && dx < 0 &&
+      // Narrow: only the gem BELOW the floor is excluded. The full height test
+      // (as `walk`) changed 16,641 objective calls on every level, most of them
+      // gems above the floor, and stays untested.
+      (process.env.OVERSHOT_FIX !== "1" || gy <= snap.cat.y);
     const flags = [];
     if (walk) flags.push("REACHABLE BY WALKING (no jump needed)");
     if (overshot) flags.push("OVERSHOT: it is BEHIND you to the left on your platform");

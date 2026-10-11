@@ -29,6 +29,7 @@ const SUITES = [
   "test_portal_jump.cjs",
   "test_gemjump_verify.cjs",
   "test_floor_text.cjs",
+  "test_overshot_fix.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.
