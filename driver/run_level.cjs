@@ -459,9 +459,9 @@ const r2 = (n) => Math.round(n * 100) / 100;
     // floor it reached by falling and never got back up (truthful history line).
     if (deathY != null) {
       for (const b of fallBlame.blameKeys(deathY)) deathHistory.push(...deathEntries({ key: b.key, action: b.move }, null, cause));
+    }
     // MISS_BLAME: name the closest approach to each gem still alive at death.
     for (const line of missBlame.lines()) deathHistory.push(line);
-    }
     deathLog.push({ wallMs: deathWallMs, step: steps, key, action, cause });
     while (deathHistory.length > DEATH_HISTORY_STORE) deathHistory.shift();
     visitCounts.clear();
