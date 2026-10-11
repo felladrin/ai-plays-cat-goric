@@ -295,5 +295,21 @@ console.log(`  config.cjs fields read via config-binding files: ${Array.from(con
 console.log(`  physics.cjs fields read via physics-binding files: ${Array.from(physicsRead).sort().join(", ")}`);
 console.log(`  (Note: decision.cjs has config binding at module level but reads some physics fields via function-level shadows)`);
 
+// --- Advance-event batch parity ----------------------------------------------
+// When the portal advance fires mid-batch, the remaining frames of the executed
+// decision would otherwise spill into the NEW level with the old action held:
+// measured on cap30_s6, the ladder's first decision of every level was mf 6
+// grounded while run_level's life-start decisions are mf 0 airborne, and the
+// phase shift changed the walk-vs-jump call at the L4 gap edge (isolated L4
+// 5/5 vs ladder loop). run_level stops the batch on ANY event; run_full must
+// stop it on advance too. Fails on the pre-fix source (return false).
+{
+  const adv = RF.match(/if \(cur\.lastEvent\.type === "advance"\) \{[\s\S]*?\}/);
+  assert(adv, "run_full.cjs: advance branch of handleEvent not found");
+  assert(/return true/.test(adv[0]),
+    "run_full.cjs: an observed advance must END the current step batch (return true), or frames spill into the new level and shift the level-entry clock phase");
+}
+console.log("  advance-event batch parity (run_full stops the batch on advance) ✓");
+
 // --- Summary -----------------------------------------------------------------
 console.log("\n=== ALL PARITY AND AUDIT CHECKS PASSED ===");

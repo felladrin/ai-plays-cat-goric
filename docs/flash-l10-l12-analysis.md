@@ -468,3 +468,31 @@ clause) and silent at @187. LEFT TO DO before live: the census (fire rate per
 level x outcome x model + winners-vs-losers compliance at firing states) and
 the blast (pure appends); the probe scratch decision_l11_route_scratch.cjs was
 deleted after recording - rebuild from the gate + --patched if needed.
+
+## L10 winner s3 vs loser s4 on the NEG_HOLD build (2026-10-10, offline)
+
+Same build, same deterministic opening (gem_b @mf84, gem_a @mf107 in both). The
+whole level is the difference: gem_c (287,68) is the top-of-tower gem and s4
+never held it (14 deaths, peak 2). Three of s4's deaths are NOT laser/OOB but
+`unwinnable reset: 2 collected + 0 alive cannot reach 3` (steps 793, 2390,
+2890, at mf 320-334) - gem_c's DEADLINE expired while the cat sat at 2/3 with
+the third gem gone. So s4 loses twice over: the apex/bob coin fails, and the
+retry budget is a gem deadline, not just the death cap.
+
+Where s4's lives end (last decision before each death): air at (288-323, 140-197)
+- the RIGHT face of the tower, falling - and ground at (226-258, 150) right
+after the launchpad jump_right. The launchpad text is NOT the L4-style lever:
+at (220,150) obj gem_c the model already rates jump_right 0.63-0.79 in every
+one of s4's 21 visits (argmax every time); no note argues against the
+productive move. The 220,150 SAMPLE share (14/21) is escalation deviating FROM
+jump_right after deaths there, not a dither between equals - the deviations
+are the cost of the cap, not the cause of the failure.
+
+The airborne steering states (@100 transit, right 0.77-0.89) are identical in
+winner and loser at the same positions and mf; the winner's gem_c collection
+(step 1157, mf 148, air at 261.75,150) is the bob-phase coin the NEG_HOLD
+record already named ("the apex prior is the hard case"). No new side-note
+lever found at the launch or transit states; the deadline angle (3 unwinnable
+resets) is the fresh fact. Next lens candidate if L10 is revisited: whether any
+prompt line states gem_c's deadline urgency at the launchpad (does the model
+know the gem will die), not whether it points left/right.

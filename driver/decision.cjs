@@ -1176,7 +1176,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
         `jumping is no longer possible from this floor: the only moves left here are walking.`
       );
     }
-    if (JUMP_FACTS && !jumpGone) lines.push(jumpUpNote(snap) + routeAscentClause(snap, target));
+    if (JUMP_FACTS && !jumpGone) lines.push(jumpUpNote(snap, target) + routeAscentClause(snap, target));
     if (GEM_FACTS && /^gem_/.test(target.name)) {
       // In the move prompt it separates: 25-28% on the clearing levels, 65-82% on
       // the failing ones. Gated so its effect can be measured on its own.
@@ -1185,6 +1185,10 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
     }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
+    if (process.env.CORRIDOR_CLOCK === "1") {
+      const _cc = corridorClause(snap, target);
+      if (_cc) lines.push(_cc);
+    }
     const _jr = walkOffFatalNote(snap, target);
     if (_jr) lines.push(_jr);
     // The old "WARNING: a jump would drive the cat's head into the top laser" is
@@ -1706,6 +1710,104 @@ function gemFromNote(snap, name, gem) {
   return ` ${name} can only be collected from the floor ${desc}.`;
 }
 
+// CORRIDOR_CLOCK (gated, off by default): name the frame at which the ROUTE to
+// the objective gem closes, when that deadline is inside the current life and
+// provable. L11: the @114->gem_a jump is laser-blocked from mf 179 at every
+// launch x tested (125.5/138/139.5), while Flash dawdles 150+ frames on @211 and
+// arrives after the close (docs/results.md corridor census: winner acted inside
+// the window 60% of fired states, losers 3.5-19%). Truth guards:
+//  - only LAUNCH-STABLE hops count: the close frame must agree (<=10) across 3
+//    canonical launch x on the source floor; the L11 @211 hop closes at 0 from
+//    the edge but 300 mid-floor, so it is excluded, exactly as the census found;
+//  - a hop that never closes from some launch x is no deadline;
+//  - the line states the deadline, not what to do: no policy.
+const CC_COLLECT_CACHE = new Map(); // "lvl|gx,gy|mf2" -> collector run key | null (mf quantized to 2: the scan step; the laser moves 0.4px per frame)
+const CC_BOTTLENECK_CACHE = new Map(); // "lvl|collectorKey|act" -> close mf | null
+function ccFirstLaser(level, x, y, act) {
+  const arc = require("./arc.cjs");
+  for (let mf = 0; mf <= 400; mf += 2) {
+    const r = arc.simulate(level, x, y, 0, 18, act, mf, { grounded: true });
+    if (r.outcome === "laser") return mf;
+  }
+  return null;
+}
+// Does a jump from (x, floorY) in act at clock mf pass within 24px of (gx,gy)?
+// Uses arc's onFrame hook - simulate returns a frame COUNT, not a path. Real
+// clock: at a phase where the laser cuts the jump, the truncated arc does not
+// collect, which is the honest answer for "can I collect now".
+function ccJumpCollects(level, x, floorY, act, gx, gy, mf) {
+  const arc = require("./arc.cjs");
+  let hit = false;
+  arc.simulate(level, x, floorY, 0, 18, act, mf, {
+    grounded: true,
+    onFrame: (px, py) => { if (!hit && Math.hypot(px - gx, py - gy) < 24) hit = true; },
+  });
+  return hit;
+}
+function ccCollector(level, gx, gy, mf) {
+  const REACH = require("./reachability.cjs");
+  const ck = level + "|" + gx + "," + gy + "|" + (Math.round(mf / 2) * 2);
+  if (CC_COLLECT_CACHE.has(ck)) return CC_COLLECT_CACHE.get(ck);
+  const arc = require("./arc.cjs");
+  const g = REACH.graph(level, 18);
+  let out = null;
+  outer: for (const r of g.runs) {
+    for (const act of ["jump_left", "jump_right"]) {
+      const xs = act === "jump_right" ? [r.right - 2, (r.left + r.right) / 2, r.left + 2] : [r.left + 2, (r.left + r.right) / 2, r.right - 2];
+      for (const x of xs) {
+        if (ccJumpCollects(level, x, r.y, act, gx, gy, mf)) { out = REACH.runKey(r); break outer; }
+      }
+    }
+  }
+  CC_COLLECT_CACHE.set(ck, out);
+  return out;
+}
+function corridorClause(snap, target) {
+  if (!target || !/^gem_/.test(target.name)) return "";
+  const REACH = require("./reachability.cjs");
+  const here = REACH.platformKeyUnder(snap.level, snap.cat.x, snap.cat.y);
+  if (!here) return "";
+  const mf = (snap.drones.tl.y - 1) / 0.2;
+  const collector = ccCollector(snap.level, target.x, target.y, mf);
+  if (!collector || collector === here) return "";
+  const g = REACH.graph(snap.level, snap.cat.height);
+  // BFS: does a route here -> collector exist at all? (The clause is about the
+  // route's measured bottleneck, not about routing; no path, no clause.)
+  const seen = new Set([here]);
+  const q = [here];
+  let found = false;
+  for (let i = 0; i < q.length && !found; i++) {
+    for (const nk of (g.edges[q[i]] || [])) {
+      if (seen.has(nk)) continue;
+      seen.add(nk); q.push(nk);
+      if (nk === collector) { found = true; break; }
+    }
+  }
+  if (!found) return "";
+  // Census scope (docs/results.md): the ONE measured, launch-stable bottleneck -
+  // the jump from the collector floor toward the gem (L11 @114: close mf 179 at
+  // launch x 125.5, 138, 139.5). No generic per-hop scan: not censused, not here.
+  const cr0 = g.runs.find((r) => REACH.runKey(r) === collector);
+  if (!cr0) return "";
+  const right = target.x > (cr0.left + cr0.right) / 2;
+  const act = right ? "jump_right" : "jump_left";
+  const bk = snap.level + "|" + collector + "|" + act;
+  let bottleneck;
+  if (CC_BOTTLENECK_CACHE.has(bk)) {
+    bottleneck = CC_BOTTLENECK_CACHE.get(bk);
+  } else {
+    const xs = right ? [cr0.right - 2, cr0.right - 8, cr0.right - 14] : [cr0.left + 2, cr0.left + 8, cr0.left + 14];
+    const closes = xs.map((x) => ccFirstLaser(snap.level, x, cr0.y, act));
+    bottleneck = (closes.some((c) => c === null) || Math.max(...closes) - Math.min(...closes) > 10)
+      ? null : Math.min(...closes);
+    CC_BOTTLENECK_CACHE.set(bk, bottleneck);
+  }
+  if (bottleneck === null) return "";
+  const N = Math.round(bottleneck - mf);
+  if (N <= 0 || N > 120) return "";
+  return ` The route to ${target.name} closes in about ${N} frames: one of its jumps is laser-blocked after that.`;
+}
+
 function gemJumpNote(snap, name, gem) {
   const w = gemJumpWindow(snap, gem);
   if (!w) return "";
@@ -1723,12 +1825,13 @@ function gemJumpNote(snap, name, gem) {
 // reachability graph (envelope over the whole floor, both directions). The prompt
 // already listed heights and the jump's rise, but the model does not subtract:
 // on level 3 it jumped at a floor 94px up, 40px beyond a jump, for 200 frames.
-function jumpUpNote(snap) {
+function jumpUpNote(snap, target) {
   const REACH = require("./reachability.cjs");
   const here = REACH.platformKeyUnder(snap.level, snap.cat.x, snap.cat.y);
   if (!here) return "";
   const g = REACH.graph(snap.level, snap.cat.height);
   const cur = g.runs.find((r) => REACH.runKey(r) === here);
+  const gapJump = gapJumpNote(snap, g, cur, here, target);
   const up = (g.edges[here] || []).map((k) => g.runs.find((r) => REACH.runKey(r) === k)).filter((r) => r && r.y < cur.y);
   if (!up.length) {
     // Name the neighbouring floors that do have a way up. The bare negative left the
@@ -1741,13 +1844,61 @@ function jumpUpNote(snap) {
       }));
     const viaText = via.map((r) => `x ${Math.round(r.left)}..${Math.round(r.right)} at y ${r.y} (${(r.left + r.right) / 2 > snap.cat.x ? "to the right" : "to the left"})`).join("; ");
     return "No higher platform can be reached by a jump from this floor." +
-      (viaText ? ` A higher platform can be reached by a jump from ${viaText}, which this floor reaches.` : "");
+      (viaText ? ` A higher platform can be reached by a jump from ${viaText}, which this floor reaches.` : "") + gapJump;
   }
   const desc = up.sort((a, b) => a.y - b.y).map((r) => {
     const mid = (r.left + r.right) / 2;
     return `x ${Math.round(r.left)}..${Math.round(r.right)} at y ${r.y} (${Math.round(cur.y - r.y)}px higher, ${mid > snap.cat.x ? "to the right" : "to the left"})`;
   });
-  return `Higher platforms a jump from this floor can land on: ${desc.join("; ")}. Any other higher platform is out of reach of one jump from here.`;
+  return `Higher platforms a jump from this floor can land on: ${desc.join("; ")}. Any other higher platform is out of reach of one jump from here.` + gapJump;
+}
+
+// GAP_JUMP (gated, off by default): the jumpUpNote filter is higher-only, so a
+// same-height crossing a jump CAN make (L4's gap: floor(95..147@93) -> x199..251@93,
+// arc-verified landing (202,93) safe at the arrival phase) was never named. The
+// gap sentence said "only a jump can" cross but not where the jump lands, while
+// GAP_DROP named only the FATAL step-off landings - making walking off sound like
+// the described option. This names the crossing landing, from the reachability
+// graph (same-height neighbour = jump-crossable by construction). Landing fact
+// only, no safety claim - same house style as the GAP_DROP step-off note.
+// ROUTE GATE (live L10 evidence): a true crossing that is merely POSSIBLE steers
+// wrong - at L10 step 25 (319.5,240, obj gem_c) the line flipped the climb argmax
+// jump 0.379 -> jump_left 0.395 toward a crossing that is off gem_c's route, and
+// the whole run's laser phase at the fatal @150 fork cascaded from that flip
+// (docs/results.md). So the line fires only when the objective is a gem AND the
+// crossing's landing floor is strictly CLOSER to that gem's collector floors on
+// the directed graph (same BFS + isCollector as routeAscentClause): on the route,
+// not just possible.
+function gapJumpNote(snap, g, cur, here, target) {
+  if (!process.env.GAP_JUMP || !cur) return "";
+  if (!target || !target.name || !/^gem_/.test(target.name)) return "";
+  const REACH = require("./reachability.cjs");
+  const nbr = (k) => g.runs.find((r) => REACH.runKey(r) === k);
+  const runs = REACH.runsOf(snap.level);
+  const isCollector = (r) =>
+    (target.x >= r.left && target.x <= r.right && targetOverlapsFloor(target, r.y, snap.cat.height)) ||
+    !!runJumpWindow(snap.level, runs, r, target, snap.cat.height);
+  const dist = (startKey) => {
+    const seen = new Set([startKey]);
+    const q = [[startKey, 0]];
+    for (let i = 0; i < q.length; i++) {
+      const [k, d] = q[i];
+      const r = nbr(k);
+      if (r && isCollector(r)) return d;
+      for (const nk of (g.edges[k] || [])) if (!seen.has(nk)) { seen.add(nk); q.push([nk, d + 1]); }
+    }
+    return Infinity;
+  };
+  const dCur = dist(here);
+  if (dCur === 0) return "";
+  const same = (g.edges[here] || []).map(nbr)
+    .filter((r) => r && r.y === cur.y && dist(REACH.runKey(r)) < dCur);
+  if (!same.length) return "";
+  const parts = same.map((r) => {
+    const mid = (r.left + r.right) / 2;
+    return `a jump to the ${mid > snap.cat.x ? "RIGHT" : "LEFT"} crosses to platform x ${Math.round(r.left)}..${Math.round(r.right)} at y ${r.y}`;
+  });
+  return ` From this floor, ${parts.join("; ")}.`;
 }
 
 // ROUTE_ASCENT (gated, off by default): when the ascent note lists 2+ floors and
@@ -1777,14 +1928,18 @@ function routeAscentClause(snap, target) {
   // The floor graph is DIRECTED (A->B = a jump from A lands on B), so distance to
   // the nearest collector is a forward BFS from each floor, stopping on a collector.
   const keyOf = (r) => REACH.runKey(r);
-  const distToCollector = (startKey) => {
+  // `avoid` (optional): a floor key that routes may NOT pass through. The opposite-
+  // side floors of the archetype state DO reach the collector - by jumping straight
+  // back onto this floor - so "no route at all" never fires; the honest reading of
+  // "does not lead to it" is "no route that does not come back here first".
+  const distToCollector = (startKey, avoid) => {
     const seen = new Set([startKey]);
     const q = [[startKey, 0]];
     for (let i = 0; i < q.length; i++) {
       const [k, d] = q[i];
       const r = nbr(k);
       if (r && isCollector(r)) return d;
-      for (const nk of (g.edges[k] || [])) if (!seen.has(nk)) { seen.add(nk); q.push([nk, d + 1]); }
+      for (const nk of (g.edges[k] || [])) if (!seen.has(nk) && nk !== avoid) { seen.add(nk); q.push([nk, d + 1]); }
     }
     return Infinity;
   };
@@ -1799,7 +1954,7 @@ function routeAscentClause(snap, target) {
   const routeFloor = firstHops.find((r) => r.y < cur.y && sideOf(r) === routeSide);
   if (!routeFloor) return ""; // the clause names an ascent floor; a route that leaves by dropping is not this fact
   const opposite = ups.filter((r) => sideOf(r) !== routeSide);
-  const deadEnds = opposite.filter((r) => distToCollector(keyOf(r)) === Infinity);
+  const deadEnds = opposite.filter((r) => distToCollector(keyOf(r), here) === Infinity);
   if (opposite.length !== deadEnds.length) return ""; // every opposite listed floor must be literally unreachable
   const fmt = (r) => `x ${Math.round(r.left)}..${Math.round(r.right)} at y ${r.y}`;
   const deadText = deadEnds.map(fmt).join(" and ");
@@ -3173,6 +3328,7 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
 
 module.exports = {
   PORTAL,
+  corridorClause,
   createOscHistory,
   excludeBadMoves,
   safeRect,
