@@ -1,5 +1,5 @@
 // Render every archived grounded state with ONE driver directory and print one
-// JSON line per state: the move prompt, the legal-move menu and the objective
+// JSON line per state: the move prompt and its option labels, the legal-move menu and the objective
 // call. Run it once with a reference checkout and once with the candidate, then
 // compare the outputs line by line (blast_shrink_geom.py). Loading a whole driver
 // directory, not one copied decision.cjs, is the point: a geometry change lives in
@@ -32,7 +32,11 @@ for (const f of files) {
         drones: { tl: { x: 0, y: 1 + inset }, tr: { x: 359 - inset, y: 0 }, bl: { x: 1 + inset, y: 310 }, br: { x: 360, y: 310 - inset } } };
       if (LIVE) LIVE.setClock(mf);
       const row = { f: path.relative(ROOT, f), level, i };
-      try { row.move = D.buildMoveCall(snap, levelGems, e.objective, []).state; } catch (err) { row.move = "ERR " + err.message; }
+      try {
+        const mc = D.buildMoveCall(snap, levelGems, e.objective, []);
+        row.move = mc.state;
+        row.crit = JSON.stringify(mc.questions.move.criteria); // option labels (label-only gates such as JUMP_NOCOLLECT)
+      } catch (err) { row.move = "ERR " + err.message; }
       try { row.menu = Object.keys(D.legalActions(snap)).join(","); } catch (err) { row.menu = "ERR " + err.message; }
       try { row.obj = JSON.stringify(D.buildObjectiveCall(snap, levelGems, [])); } catch (err) { row.obj = "ERR " + err.message; }
       process.stdout.write(JSON.stringify(row) + "\n");
