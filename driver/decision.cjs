@@ -1309,7 +1309,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       criteria: legalActions(snap),
     },
   };
-  if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
+  if ((process.env.JUMP_NOCOLLECT === "1" || process.env.JUMP_NOCOLLECT === "2") && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria, process.env.JUMP_NOCOLLECT);
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
   // LAND_LATE=2: every live gem, not only the objective (objective first). L6
   // (all100_s9 ladder): lives took gem_b and chased gem_c while the route to gem_a
@@ -1469,7 +1469,7 @@ function launchLabel(snap, criteria, mode) {
 // x 190 from jump_right 0.502 / right 0.404 to 0.275 / 0.588; the same label
 // without the gem clause, and the collector named in the floor text (COLLECT_LAND)
 // or in the `right` label, did not (the long `right` label lowered `right`).
-function jumpNoCollect(snap, target, criteria) {
+function jumpNoCollect(snap, target, criteria, mode = "1") {
   if (!snap.onPlatform) return;
   const REACH = require("./reachability.cjs");
   const { simulate } = require("./arc.cjs");
@@ -1497,8 +1497,19 @@ function jumpNoCollect(snap, target, criteria) {
     if (r.outcome !== "landed" || r.y >= snap.cat.y - 0.5) continue;
     const q = runAt(r.x, r.y);
     const below = dropFloors(dir === "left" ? here.left : here.right);
-    if (!q || !below.length) continue;
-    if (collects(q) || !below.some(collects) || collects(here)) continue;
+    if (!q || (!below.length && mode !== "2")) continue;
+    if (collects(q) || collects(here)) continue;
+    // =2: also when another jump from here lands on a collector floor. L10 (all3_s6
+    // ladder): on the tower at y 190 heading for gem_c, jump lands on the tower top
+    // (a gem_c collector) and jump_left (taken, 0.46) on x 212..264 at y 150, from
+    // which gem_c cannot be collected; =1 needs a step-off collector and is silent.
+    const altCollects = () => ["jump", "jump_left", "jump_right"].some((a) => {
+      if (a === k || !(a in criteria)) return false;
+      const ra = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, a, mf, { grounded: true });
+      const qa = ra.outcome === "landed" ? runAt(ra.x, ra.y) : null;
+      return !!qa && qa !== here && collects(qa);
+    });
+    if (!below.some(collects) && !(mode === "2" && altCollects())) continue;
     criteria[k] += ` (lands on platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} cannot be collected)`;
   }
 }
