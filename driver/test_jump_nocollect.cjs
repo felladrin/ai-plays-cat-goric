@@ -24,5 +24,14 @@ assert.strictEqual(crit("gem_a").jump_right, "jump and steer right (lands on pla
 assert.strictEqual(crit("gem_a").right, "walk right", "the walk label is unchanged");
 // gem_c can be collected from this floor (off its right end), so no label for it.
 assert.strictEqual(crit("gem_c").jump_right, "jump and steer right");
+// =2: another jump lands on a collector. L10 tower at (310.75,190) mf 46, objective gem_c:
+// jump lands on the tower top (collector), jump_left on x 212..264 at y 150 (not one).
+const T10 = require("./experiments/gem_table.cjs")()[10];
+const l10 = { level: 10, gemsCollected: 0, aliveGems: 3, gemPositions: T10.map((g) => ({ x: g[0], y: g[1] })), moving: false, onPlatform: true,
+  cat: { x: 310.75, y: 190, dx: 0, dy: 0, height: 18 }, drones: { tl: { x: 0, y: 1 + 0.2 * 46 }, tr: { x: 359 - 0.2 * 46, y: 0 }, bl: { x: 1 + 0.2 * 46, y: 310 }, br: { x: 360, y: 310 - 0.2 * 46 } } };
+process.env.JUMP_NOCOLLECT = "1";
+assert.strictEqual(D.buildMoveCall(l10, T10, "gem_c", []).questions.move.criteria.jump_left, "jump and steer left", "=1 is silent there");
+process.env.JUMP_NOCOLLECT = "2";
+assert.strictEqual(D.buildMoveCall(l10, T10, "gem_c", []).questions.move.criteria.jump_left, "jump and steer left (lands on platform x 212..264 at y 150, from which gem_c cannot be collected)");
 delete process.env.JUMP_NOCOLLECT;
 console.log("test_jump_nocollect: Failed: 0");
