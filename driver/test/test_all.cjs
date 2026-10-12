@@ -39,6 +39,7 @@ const SUITES = [
   "test_portal_walk.cjs",
   "test_launch_label.cjs",
   "test_conf_argmax.cjs",
+  "test_hold_live.cjs",
   "test_preset.cjs",
 ];
 
