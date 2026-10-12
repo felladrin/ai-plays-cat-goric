@@ -1311,6 +1311,14 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
   };
   if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
+  // LAND_LATE=2: every live gem, not only the objective (objective first). L6
+  // (all100_s9 ladder): lives took gem_b and chased gem_c while the route to gem_a
+  // closed behind them; the objective layer never named gem_a.
+  if (process.env.LAND_LATE === "2") {
+    const live = matchGemsToSpawn(levelGems, snap.gemPositions);
+    const order = live.filter((g) => g.name === objectiveName).concat(live.filter((g) => g.name !== objectiveName));
+    for (const g of order) landLate(snap, g, questions.move.criteria);
+  }
   if (process.env.LAUNCH_LABEL) launchLabel(snap, questions.move.criteria, process.env.LAUNCH_LABEL);
   if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
     const pw = portalWalk(snap, target);

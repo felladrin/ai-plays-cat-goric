@@ -28,5 +28,15 @@ const T4 = require("./experiments/gem_table.cjs")()[4];
 const l4 = { level: 4, gemsCollected: 0, aliveGems: 3, gemPositions: T4.map((g) => ({ x: g[0], y: g[1] })), moving: false, onPlatform: true,
   cat: { x: 129.75, y: 93, dx: 0, dy: 0, height: 18 }, drones: { tl: { x: 0, y: 1 + 0.2 * 6 }, tr: { x: 359 - 0.2 * 6, y: 0 }, bl: { x: 1 + 0.2 * 6, y: 310 }, br: { x: 360, y: 310 - 0.2 * 6 } } };
 assert.strictEqual(D.buildMoveCall(l4, T4, "gem_a", []).questions.move.criteria.right, "walk right");
+// LAND_LATE=2: any live gem, not only the objective. L6 at (144.75,79) mf 61 heading
+// for gem_c: walking right off x 180 lands on x 211..263 at y 220, from which gem_a
+// can no longer be reached in time.
+process.env.LAND_LATE = "2";
+const T6 = require("./experiments/gem_table.cjs")()[6];
+const l6 = { level: 6, gemsCollected: 0, aliveGems: 3, gemPositions: T6.map((g) => ({ x: g[0], y: g[1] })), moving: false, onPlatform: true,
+  cat: { x: 144.75, y: 79, dx: 0, dy: 0, height: 18 }, drones: { tl: { x: 0, y: 1 + 0.2 * 61 }, tr: { x: 359 - 0.2 * 61, y: 0 }, bl: { x: 1 + 0.2 * 61, y: 310 }, br: { x: 360, y: 310 - 0.2 * 61 } } };
+assert.ok(/from which gem_a can no longer be reached in time/.test(D.buildMoveCall(l6, T6, "gem_c", []).questions.move.criteria.right));
+process.env.LAND_LATE = "1";
+assert.ok(!/gem_a/.test(D.buildMoveCall(l6, T6, "gem_c", []).questions.move.criteria.right), "=1 checks only the objective");
 delete process.env.LAND_LATE;
 console.log("test_land_late: Failed: 0");
