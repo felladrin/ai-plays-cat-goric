@@ -3739,7 +3739,15 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
   // with a recent death, so on a long level most keys sample: the SEED 11
   // replication ladder (all2_s11) lost L10 lives at the tower top (323,140) mf
   // 111 where jump_left had 0.77 and the sampler drew left, off the tower.
-  const confTrust = process.env.CONF_ARGMAX === "1" && (moveProbs[argmaxMove] || 0) >= CONF_ARGMAX_P && priorDeaths < CONF_ARGMAX_DEATHS;
+  // =2: only failures that are not real deaths here may be overridden. Most of
+  // L10's sampling keys came from run_full's stall detector ("no progress
+  // toward ..." entries, 47 stalls in all2_s11), while on L3 one real death at
+  // (240,250) is what made the next life try jump_right instead of the fatal
+  // jump_left (conf_s9 lost 21 lives there under =1, all2_s9 lost 1).
+  const realDeathsHere = (deathHistory || []).filter((h) => h.key === hereKey && !/^no progress toward/.test(h.cause || "")).length;
+  const confTrust = (moveProbs[argmaxMove] || 0) >= CONF_ARGMAX_P && (
+    (process.env.CONF_ARGMAX === "1" && priorDeaths < CONF_ARGMAX_DEATHS) ||
+    (process.env.CONF_ARGMAX === "2" && realDeathsHere === 0));
   const move = exploring && !wptTrust && !confTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
   if (oscHistory) oscHistory.note(hereKey, move, exploring, snap.gemsCollected);
   if (memo) { memo.lastMove = move; memo.lastMoveMF = mfNow; }
