@@ -66,8 +66,8 @@ export SYSTEMONE_BASE_URL=http://127.0.0.1:8000    # your server (no /v1 suffix)
 export SYSTEMONE_MODEL=my-model                    # sent as "model", and stamped in the run file
 # export SYSTEMONE_API_KEY=...                     # only if your server wants a bearer token
 
-experiments/sweep_systemone.sh my-model 1          # all 14 levels, isolated, seed 1
-experiments/sweep_systemone.sh my-model 2 3 6 11   # only levels 3, 6 and 11, seed 2
+research/sweep_systemone.sh my-model 1          # all 14 levels, isolated, seed 1
+research/sweep_systemone.sh my-model 2 3 6 11   # only levels 3, 6 and 11, seed 2
 ```
 
 The sweep runs every level on the same build the other endpoints are compared on, and writes one line per level to `out/byom/<model>/s<seed>/summary.txt`, next to each level's log and run file (`run_level_<n>_systemone.json`, which records the model id, the seed and every build flag). A level takes from a few seconds to about half an hour, depending on how fast your server answers and how many decisions the level needs.

@@ -64,8 +64,8 @@ jobs:
 
       - name: Run verify_layout
         working-directory: driver
-        run: node verify_layout.cjs
+        run: node test/verify_layout.cjs
 
       - name: Run overlay_test
         working-directory: driver
-        run: node overlay_test.cjs
+        run: node test/overlay_test.cjs

@@ -1002,10 +1002,10 @@ function jumpLandingNote(snap, target) {
   // y, so test the platform x, not the key).
   const { simulate } = require("./arc.cjs");
   // Real laser clock, not the frozen mf=1 the audit found (site 6,
-  // docs/simulate-clock-audit.md): the held-arc pick must survive the clock the
+  // docs/research/simulate-clock-audit.md): the held-arc pick must survive the clock the
   // cat actually faces, or the named launch x is chosen against a laser state
   // that no longer exists. Offline blast radius 0.5% of prompts, zero menu
-  // changes (docs/blast-site6-clock.md).
+  // changes (docs/research/blast-site6-clock.md).
   const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
   let heldX = null, heldPlat = null;
   for (const x of good) {
@@ -1767,7 +1767,7 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   // GAP_DROP (gated, off by default): the gap note argues against the productive
   // move when the objective is reached by DROPPING off the warned edge, not by
   // crossing the gap (L4 @93: removing the note flips left 0.26 -> 0.92; the
-  // extension keeps the sentence true and still flips - docs/flash-l4-analysis.md).
+  // extension keeps the sentence true and still flips - docs/research/flash-l4-analysis.md).
   // Narrow v1: fire only when EVERY landing off that edge is the objective's own
   // holder floor, so it can never fire where crossing the gap really is the route.
   if (process.env.GAP_DROP === "1" && snap.onPlatform && target) {
@@ -2215,7 +2215,7 @@ function portalWalk(snap, portal) {
   // Off the floor's end: L13 (jnc2w100_s9 ladder), floor x 206..258 at y 136 at
   // mf 228 with all three gems, the model took jump_left (0.63; held, it dies at
   // the top laser) over left; held left off the left end (x 206) enters the portal
-  // box 6 frames after the edge (docs/flash-l13-analysis.md, the same walk-off).
+  // box 6 frames after the edge (docs/research/flash-l13-analysis.md, the same walk-off).
   // Real clock: the walk to the end first, then the held step-off; the portal
   // touch must come before any death.
   const side = portal.x < snap.cat.x ? "left" : "right";
@@ -2326,7 +2326,7 @@ function gapJumpNote(snap, g, cur, here, target) {
 // to ONE side only, and every listed floor on the OTHER side has no route to the
 // objective at all, name both. L11 @231: bearing points right at a dead-end floor
 // while the route goes left; the clause flipped jump_left 0.01 -> 0.82 at 3 of 3
-// loop states (docs/flash-l10-l12-analysis.md). Both clauses must be literally
+// loop states (docs/research/flash-l10-l12-analysis.md). Both clauses must be literally
 // true: route side from a BFS, dead end from unreachability, not from bearing.
 function routeAscentClause(snap, target) {
   if (process.env.ROUTE_ASCENT !== "1") return "";
@@ -2551,7 +2551,7 @@ function descentPoints(snap, levelGems) {
     // only when survival.canStillLand with the portal box proves a trajectory
     // from just past THIS edge can touch it. The endgame dither keeps `portal`
     // as objective while the descent that actually reaches it loses by 0.064 at
-    // the archetype state; docs/flash-l13-analysis.md.
+    // the archetype state; docs/research/flash-l13-analysis.md.
     let portalNote = "";
     if (process.env.PORTAL_DESC === "1" && snap.gemsCollected >= 3 && mfNow != null) {
       const { canStillLand } = require("./survival.cjs");
@@ -2611,7 +2611,7 @@ function bfsDistToSet(edges, from, targets) {
   return null;
 }
 
-// The EXIT_FACT predicate (docs/flash-l2-l5-analysis.md): the cat stands on a
+// The EXIT_FACT predicate (docs/research/flash-l2-l5-analysis.md): the cat stands on a
 // floor, the objective sits on a different floor, and EVERY shortest route to
 // the objective's holder leaves this floor on ONE side - the side OPPOSITE the
 // objective's horizontal bearing. The move prompt states the objective's offset
@@ -2620,7 +2620,7 @@ function bfsDistToSet(edges, from, targets) {
 // while the right side needs 3. Census: Flash complies with the exit side only
 // 16.4% of firings (Darwin 30.0%, Phocinae 25.2%, Clef never fires).
 //
-// ONE SOURCE OF TRUTH: driver/experiments/census_exit_direction.cjs requires
+// ONE SOURCE OF TRUTH: driver/research/census_exit_direction.cjs requires
 // this function, so the census and the live prompt cannot drift apart.
 // `mf` is the moving-frame count for the jump simulation; the census passes the
 // archived value, the driver derives it from the live snap.
@@ -2634,7 +2634,7 @@ function exitDirection(snap, levelGems, objName, objX, objY, mf, mode) {
   // only ever REMOVE such false claims, never add or move a firing. It replaces
   // v1 as EXIT_FACT=1 once the three checks pass (L2 assert state still fires
   // D=left; L12 @125 up-snap side silent; blast vs v1 touches only snap-up
-  // states). docs/flash-l10-l12-analysis.md.
+  // states). docs/research/flash-l10-l12-analysis.md.
   // v2 = landingPlatforms landings (committed side-hold then free steering, from
   // just past the edge) + the strict "way DOWN" filter: honest about up-snaps
   // (L12: the left step-off teleports the cat UP) but not yet proven live.
@@ -2747,7 +2747,7 @@ function exitDirection(snap, levelGems, objName, objX, objY, mf, mode) {
 }
 
 
-// The REACH_FACT predicate (docs/flash-l13-analysis.md): the cat is airborne and
+// The REACH_FACT predicate (docs/research/flash-l13-analysis.md): the cat is airborne and
 // EXACTLY ONE of the three steering holds ({left, right, none}) passes the
 // objective's collision box before landing or dying. The Flash L13 archetype: cat
 // airborne at (197.75,140), portal box starts at x=196 - 1.75px and two frames of
@@ -2760,7 +2760,7 @@ function exitDirection(snap, levelGems, objName, objX, objY, mf, mode) {
 //   gem    16x16 centred on the spawn    (resetGems.ts anchor 0.5, 16px frames)
 //   collides = plain AABB overlap, once per game-loop frame.
 //
-// ONE SOURCE OF TRUTH: driver/experiments/census_reach_fact.cjs requires this.
+// ONE SOURCE OF TRUTH: driver/research/census_reach_fact.cjs requires this.
 function reachHolds(snap, objName, objX, objY, mf) {
   if (snap.onPlatform) return { reason: "grounded" };
   if (objName === "portal" && snap.gemsCollected < 3) return { reason: "portalNotLive" };
@@ -2790,7 +2790,7 @@ function reachHolds(snap, objName, objX, objY, mf) {
 // strict-minimum predicates (airRoute, the rejected KEEP_HOLD) are silent
 // exactly where the L10 mode-1 apex sits, because the two good holds tie on
 // floor(304..356@140) and only the bad one (left, off the tower edge, death)
-// differs. Census: experiments/census_neg_hold.cjs (25.9% of airborne gem-obj
+// differs. Census: research/census_neg_hold.cjs (25.9% of airborne gem-obj
 // decisions fire - broad; the live probe decides).
 // Scoring per hold: 0 if the held arc touches the objective box; else the
 // landing floor's BFS distance on g4 to the TARGET SET = holder floor plus the
@@ -3395,7 +3395,7 @@ const VISIT_WINDOW = 12;
 const VISIT_STUCK_THRESHOLD = 3;
 const TEMP_PER_REVISIT = 0.5;
 
-// ESC_FIX: 2-key oscillation tracker. The L3 measurement (docs/flash-l2-l5-analysis.md,
+// ESC_FIX: 2-key oscillation tracker. The L3 measurement (docs/research/flash-l2-l5-analysis.md,
 // 2026-10-10) showed the losers' dither spends ~75% of its decisions in SAMPLE mode
 // at the SAME two 10px keys, and two thirds of those samples land off-argmax: the
 // revisit escalation feeds the loop it is meant to break. This tracker remembers,

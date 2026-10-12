@@ -27,7 +27,7 @@ const MAX_FRAMES = 240;
 // shouldCheckCollisionBetweenCatAndPortal: live only at gemsCollected >= 3.
 // Touching it ENDS THE LEVEL AS A WIN, so a trajectory that crosses the portal
 // box is not certain death no matter where the platforms are (L13 s4 steps
-// 2144/2162: the winning hold was pruned; docs/flash-l13-analysis.md).
+// 2144/2162: the winning hold was pruned; docs/research/flash-l13-analysis.md).
 const PORTAL_BOX = { x0: 180 - 16, x1: 180 + 16, y0: 150 - 16, y1: 150 + 16 };
 const overlapsPortal = (x, y, h) =>
   x < PORTAL_BOX.x1 && x + 1 > PORTAL_BOX.x0 && y - h < PORTAL_BOX.y1 && y > PORTAL_BOX.y0;

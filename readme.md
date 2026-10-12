@@ -37,6 +37,8 @@ It ends with `won (reached level 14): true`.
 
 Any model that gives a probability per answer works: through first-token logprobs on an OpenAI-compatible chat endpoint (llama.cpp, vLLM), or through a decision endpoint (`/v1/systemone`). [docs/bring-your-own-model.md](docs/bring-your-own-model.md) shows how to plug one in, and [driver/README.md](driver/README.md) lists every endpoint the driver knows.
 
+To score it on the whole game, run `npm run benchmark` from `driver/`: [docs/benchmark.md](docs/benchmark.md) explains the score and how to add your result to the table.
+
 If you know an open-weight model that could do this with fewer deaths, open an issue and name it.
 
 ## Licence

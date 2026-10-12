@@ -42,7 +42,7 @@ Three times in one night a fix aimed at one level regressed another. Test the sp
 
 ## Replay before you run
 
-`driver/experiments/probe_move.cjs` reproduces an archived decision offline, at 244 of 250 attempted decisions exactly. A prompt wording change is testable in seconds rather than by a 45-minute run.
+`driver/research/probe_move.cjs` reproduces an archived decision offline, at 244 of 250 attempted decisions exactly. A prompt wording change is testable in seconds rather than by a 45-minute run.
 
 **But a probe is blind to trajectory.** Re-scoring archived states cannot tell you which states the cat then reaches. A change touching only airborne text was observed deleting a *grounded* state from a run entirely. Arm D is the full version of this lesson: it moved 42 of 42 decisions exactly as the probe predicted, and the level got worse.
 

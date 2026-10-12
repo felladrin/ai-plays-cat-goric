@@ -114,7 +114,7 @@ The run then plays only the kept levels. When the cat touches a portal into a le
 The rewrite happens inside the same page task as the render, so no frame of an unplayed level is ever presented to the recorder. Every skip lands in the run JSON under `demoSkips`, so the recording's provenance says exactly which levels were not played.
 
 ```sh
-node driver/experiments/test_demo_skip.cjs   # checks the rewrite against the real bridge
+node driver/research/test_demo_skip.cjs   # checks the rewrite against the real bridge
 ```
 
 ### Configuration
@@ -144,7 +144,7 @@ Everything machine-specific is in `config.cjs` and overridable by environment va
 | `PRESET` | `winning` | the flag set both runners fill in for every flag left unset (`preset.cjs`): the levers that beat the game, plus the ladder caps below. `none` runs the bare baseline. Stamped in the run file's `build` |
 | `MAX_DEATHS_PER_LEVEL` | `100` (`10` with `PRESET=none`) | per-level death ceiling on a non-demo ladder run |
 | `MAX_TOTAL_STEPS` | `150000` (`40000` with `PRESET=none`) | total step ceiling for a ladder run |
-| `ENDPOINT` | `qwen_local` | which endpoint `survey_levels.sh` runs |
+| `ENDPOINT` | `qwen_local` | which endpoint `research/survey_levels.sh` runs |
 
 If Playwright reports `Executable doesn't exist at .../chromium_headless_shell-<n>`, the
 installed browser build does not match the playwright package. Either run
@@ -184,21 +184,9 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `benchmark.cjs` | run the ladder per seed and write `benchmark.json` |
 | `config.cjs` | environment resolution |
 | `physics.cjs`, `level_data.cjs` | constants mirrored from the game |
-| `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools (need live harness + Playwright) |
 | `cadence.cjs` | how many frames one decision runs for, and when the model re-decides |
-| `survey_levels.sh` | run levels in isolation (needs live harness + endpoint), one row per level in `out/survey_<endpoint>.tsv` |
-| `test_all.cjs` | runs all test suites (10 PASS + 1 pinned EXPECTED-RED). `npm test` in this folder. |
-| `test_death_history.cjs` | death history, revisit escalation, and stall detector checks |
-| `test_descent_gate.cjs` | descent point offer/stranding gate checks |
-| `test_sticky_objective.cjs` | sticky objective lock checks |
-| `test_cfg_shadow.cjs` | CFG shadowing scope checks |
-| `test_burn_facts.cjs` | BURN_FACTS clause checks |
-| `test_obj_sample.cjs` | OBJ_SAMPLE / WPT_ARGMAX objective sampling checks |
-| `test_descent_laser_gate.cjs` | descent laser gate checks |
-| `test_simulate_clock.cjs` | simulate() clock argument audit checks |
-| `test_runner_parity.cjs` | run_level/run_full parity checks |
-| `test_census_pins.cjs` | census determinism + pinned verdicts/counts for `experiments/census_simulate_clock.cjs` |
-| `test_objective_lock.cjs` | objective lock and jump-landing note checks (red by design) |
+| `test/` | the checks. `npm test` runs every `test/test_*.cjs` through `test/test_all.cjs`, offline; one suite is red by design and pinned. `verify_layout.cjs` and `overlay_test.cjs` are the browser checks CI runs against a live harness. Fixtures are in `test/fixtures/` |
+| `research/` | the tools behind the lab notebook: offline census, blast and probe scripts, the isolated-level sweeps (`sweep_systemone.sh`, `survey_levels.sh`), inspection tools that need a live harness (`probe.cjs`, `dump.cjs`) and the screencast pipeline (`video/`). Its own [README](research/README.md) lists each script's status |
 
 The policy, the results, the dead ends and the open problems are in [`../docs/`](../docs/README.md).
 

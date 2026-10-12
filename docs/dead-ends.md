@@ -110,7 +110,7 @@ the game's collision boxes, cached per level+gem). Routes are the same
 vocabulary as `exitDirection`: `descentPoints` landings plus exact jump arcs
 from the cat's x, BFS over g4 to the set. Fire iff all shortest routes leave
 one side, opposite the gem's horizontal bearing. Census
-`experiments/census_float_exit.cjs`, 372 archives / 70,351 decisions:
+`research/census_float_exit.cjs`, 372 archives / 70,351 decisions:
 
 ```
  3 CLEARED   67/  251 comply=22%   3 failed   753/7639 comply=30%
@@ -134,7 +134,7 @@ route to the dead-end floor(181..233@187), while the productive route is
 walk-left-then-jump-left); and the fire rate on clearing runs (27% on L3)
 means the sentence would have fired inside winning trajectories. The predicate
 stays exported for the record; no gate, no prompt text. Full census context:
-[flash-l10-l12-analysis.md](flash-l10-l12-analysis.md).
+[research/flash-l10-l12-analysis.md](research/flash-l10-l12-analysis.md).
 
 ## DESC_HONEST: honest descent-landing attribution (2026-10-10, measured, rejected, code removed)
 
@@ -160,12 +160,12 @@ one-line gate with a proven probe flip still went null-to-negative live: the
 probe measures one decision, the run is the trajectory.
 
 Code removed from decision.cjs (descHonestSuffix, descHonestLiveFloors, the
-dropFrom/descentPoints hooks); the census (`experiments/census_desc_honest.cjs`)
+dropFrom/descentPoints hooks); the census (`research/census_desc_honest.cjs`)
 and the probe stay for the record. Verified after removal: `npm test` green
 (only the expected-red `test_objective_lock`), and the HEAD blast with all gates
 off shows **0 state-text diffs** over 71,062 rebuilt decisions (the 978 menu
 diffs are the ungated routeBlocked fix, L4 850 + L6 128, counted separately by
-`experiments/blast_gates_head.cjs`).
+`research/blast_gates_head.cjs`).
 
 ## AIR_ROUTE: airborne route and survival facts (2026-10-10, measured, rejected, never gated)
 
@@ -185,7 +185,7 @@ The motivating state is real (L13 s5 step 116: left and right both die in the
 laser when held, only `none` lands, the model answered left, and `isFatal` does
 not prune left because it allows free steering after the committed frames) - but
 the fact fires on 3 in 10 airborne decisions everywhere. The predicates live ONLY in the census
-(`experiments/census_air_route.cjs`, self-contained); they were removed from
+(`research/census_air_route.cjs`, self-contained); they were removed from
 `decision.cjs` and no gate was ever wired into the prompt, so shipped prompts
 are byte-identical.
 
@@ -194,7 +194,7 @@ are byte-identical.
 The grounded sibling of NEG_HOLD, motivated by L11: on `floor(145..197@231)` the
 bearing to floating gem_a pulls right/jump_right (back UP to dist 4) while the
 productive route continues LEFT. `groundedMoveFact`
-(`experiments/census_grounded_route.cjs`, predicate local - never entered
+(`research/census_grounded_route.cjs`, predicate local - never entered
 decision.cjs): score each of the five grounded moves by the g4 route length from
 its HELD landing to the gem's collector set (0 if the arc itself collects);
 scope = grounded + objective at or above the cat's y, the exact complement of
@@ -226,8 +226,8 @@ Grounded + obj portal + gc3, "stepping off this end reaches the portal" (oracle:
 canStillLand with a hits Set so only a portal-box touch returns true). Fires on
 1,323 of 1,349 portal-endgame decisions (98%) and on every clearing run at full
 rate - true but not specific; the dithering cat is not missing this
-information. Full writeup: flash-l13-analysis.md, "The endgame dither is real".
-Predicate lives in experiments/census_portal_reach.cjs only.
+information. Full writeup: research/flash-l13-analysis.md, "The endgame dither is real".
+Predicate lives in research/census_portal_reach.cjs only.
 
 ## DESC_ANNOT: naming the gem on a descent entry (2026-10-10, measured, rejected, code removed)
 
@@ -244,5 +244,5 @@ Live on Flash L4 full stack, same seeds: **0 of 3 cleared** - s3 28 deaths (vs
 flips did not compose into a cleared level: naming the gem does not break the
 apex-snap loop, and the added text perturbs other decisions on the clearing
 levels' prompts too. Gate removed from decision.cjs; the blast script stays at
-experiments/blast_desc_annot.cjs (needs a `git show` copy at
-decision_old_scratch.cjs to re-run). Full account: flash-l4-analysis.md.
+research/blast_desc_annot.cjs (needs a `git show` copy at
+decision_old_scratch.cjs to re-run). Full account: research/flash-l4-analysis.md.
