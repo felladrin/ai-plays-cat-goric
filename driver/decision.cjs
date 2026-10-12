@@ -1309,7 +1309,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       criteria: legalActions(snap),
     },
   };
-  if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
+  if ((process.env.JUMP_NOCOLLECT === "1" || process.env.JUMP_NOCOLLECT === "2") && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria, process.env.JUMP_NOCOLLECT);
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
   // LAND_LATE=2: every live gem, not only the objective (objective first). L6
   // (all100_s9 ladder): lives took gem_b and chased gem_c while the route to gem_a
@@ -1469,7 +1469,7 @@ function launchLabel(snap, criteria, mode) {
 // x 190 from jump_right 0.502 / right 0.404 to 0.275 / 0.588; the same label
 // without the gem clause, and the collector named in the floor text (COLLECT_LAND)
 // or in the `right` label, did not (the long `right` label lowered `right`).
-function jumpNoCollect(snap, target, criteria) {
+function jumpNoCollect(snap, target, criteria, mode = "1") {
   if (!snap.onPlatform) return;
   const REACH = require("./reachability.cjs");
   const { simulate } = require("./arc.cjs");
@@ -1497,8 +1497,19 @@ function jumpNoCollect(snap, target, criteria) {
     if (r.outcome !== "landed" || r.y >= snap.cat.y - 0.5) continue;
     const q = runAt(r.x, r.y);
     const below = dropFloors(dir === "left" ? here.left : here.right);
-    if (!q || !below.length) continue;
-    if (collects(q) || !below.some(collects) || collects(here)) continue;
+    if (!q || (!below.length && mode !== "2")) continue;
+    if (collects(q) || collects(here)) continue;
+    // =2: also when another jump from here lands on a collector floor. L10 (all3_s6
+    // ladder): on the tower at y 190 heading for gem_c, jump lands on the tower top
+    // (a gem_c collector) and jump_left (taken, 0.46) on x 212..264 at y 150, from
+    // which gem_c cannot be collected; =1 needs a step-off collector and is silent.
+    const altCollects = () => ["jump", "jump_left", "jump_right"].some((a) => {
+      if (a === k || !(a in criteria)) return false;
+      const ra = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, a, mf, { grounded: true });
+      const qa = ra.outcome === "landed" ? runAt(ra.x, ra.y) : null;
+      return !!qa && qa !== here && collects(qa);
+    });
+    if (!below.some(collects) && !(mode === "2" && altCollects())) continue;
     criteria[k] += ` (lands on platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} cannot be collected)`;
   }
 }
@@ -3062,6 +3073,8 @@ const JUMP_NOUL_THRESHOLD = 0.5;
 // LLM-sampling idiom where 0.7 reads as "tame". Do NOT set T < 1 to "be
 // conservative" — that is the opposite of conservative for exploration.
 const SAMPLE_TEMPERATURE = 1.0; // sample the model's own distribution, no bias
+const CONF_ARGMAX_P = 0.6; // CONF_ARGMAX: top-option probability that keeps the argmax while exploring
+const CONF_ARGMAX_DEATHS = 3; // ...unless this many deaths are recorded at the key
 const TEMP_PER_PRIOR_DEATH = 0.5; // escalate exploration per prior death at this position
 const TEMP_MAX = 3.0;
 
@@ -3721,7 +3734,21 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
       }
     }
   }
-  const move = exploring && !wptTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
+  // CONF_ARGMAX (gated): keep a confident argmax while exploring, unless it has
+  // already died here repeatedly. Death-history exploration marks every 10px key
+  // with a recent death, so on a long level most keys sample: the SEED 11
+  // replication ladder (all2_s11) lost L10 lives at the tower top (323,140) mf
+  // 111 where jump_left had 0.77 and the sampler drew left, off the tower.
+  // =2: only failures that are not real deaths here may be overridden. Most of
+  // L10's sampling keys came from run_full's stall detector ("no progress
+  // toward ..." entries, 47 stalls in all2_s11), while on L3 one real death at
+  // (240,250) is what made the next life try jump_right instead of the fatal
+  // jump_left (conf_s9 lost 21 lives there under =1, all2_s9 lost 1).
+  const realDeathsHere = (deathHistory || []).filter((h) => h.key === hereKey && !/^no progress toward/.test(h.cause || "")).length;
+  const confTrust = (moveProbs[argmaxMove] || 0) >= CONF_ARGMAX_P && (
+    (process.env.CONF_ARGMAX === "1" && priorDeaths < CONF_ARGMAX_DEATHS) ||
+    (process.env.CONF_ARGMAX === "2" && realDeathsHere === 0));
+  const move = exploring && !wptTrust && !confTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
   if (oscHistory) oscHistory.note(hereKey, move, exploring, snap.gemsCollected);
   if (memo) { memo.lastMove = move; memo.lastMoveMF = mfNow; }
   log(`move=${move}(argmax ${argmaxMove}) mode=${exploring ? "SAMPLE" : "ARGMAX"} T=${T.toFixed(2)} priorDeaths=${priorDeaths} revisits=${revisits}${excluded ? ` esc_excluded=[${excluded.join(",")}]` : ""} probs=${JSON.stringify(moveProbs)}`);
