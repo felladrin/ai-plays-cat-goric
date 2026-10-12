@@ -15,8 +15,10 @@ A classifier LLM plays a 13kB platformer. Each decision it answers two multiple-
 npm run harness                        # terminal 1: the game page on :5173
 cd driver
 node run_level.cjs clef 10             # one level, isolated run
-node run_full.cjs clef                 # the whole ladder
-./beat_the_game.sh 9                   # the ladder with the winning flag set (PurpleMIST-Flash-1.0)
+node run_full.cjs clef                 # the whole ladder, with the default preset (the winning flag set)
+PRESET=none node run_full.cjs clef     # the bare baseline: every gate off
+./beat_the_game.sh 9                   # the winning ladder on PurpleMIST-Flash-1.0 (systemone)
+npm run benchmark -- systemone 9 11    # the ladder per seed, one comparable result (out/benchmark/)
 npm test                               # the driver's default suite
 ```
 
@@ -35,7 +37,9 @@ npm test                               # the driver's default suite
 | `driver/cadence.cjs` | When the model is asked (walk budget, airborne re-decide, `WALKOFF_CLEAR`) |
 | `driver/jev.cjs` | The endpoint clients. The endpoint table is at the top of `run_level.cjs` and in `driver/README.md` |
 | `driver/route_clock.cjs`, `driver/arc.cjs`, `driver/collect_check.cjs` | Clock, trajectory and collectability analysis behind the prompt facts. Every claim a lever adds is proven by one of them |
-| `driver/beat_the_game.sh` | The winning flag set for `run_full.cjs` (keep it in step with `docs/results.md`) |
+| `driver/preset.cjs` | The default flag set both runners apply before anything reads the environment (`test_preset.cjs` pins it to the winning build; keep it in step with `docs/results.md`) |
+| `driver/benchmark.cjs` | Runs `run_full.cjs` once per seed against one endpoint and writes `benchmark.json` plus a one-line summary |
+| `driver/beat_the_game.sh` | `run_full.cjs systemone` with the winning preset at SEED 9 |
 | `driver/experiments/` | Offline census, blast and probe scripts (`render_states.cjs`, `blast_shrink_geom.py`, `probe_move_wording.cjs`, `cmp_gates.cjs`, `cmp_obj.cjs`). Run these before any live run |
 | `docs/` | The project memory: results, dead ends, open problems, game facts, architecture |
 
@@ -50,7 +54,7 @@ The `qwen_local` and `clef` entries in `driver/run_level.cjs` are the templates 
 
 ## How a lever is added
 
-Every lever is an env gate, off by default and stamped into the run file's `build` (`driver/run_stats.cjs`). The order that has worked: find the decision where lives go wrong in the archives; check the fact with the simulator or `route_clock`; probe the wording at that state (`probe_move_wording.cjs`, `@crit:` edits replace an option label); build it gated; unit test; re-pin `docs/simulate-clock-audit.md` for any new `arc.simulate` site (`test_simulate_clock.cjs` fails otherwise); blast it over the archives (gate off must give 0 diffs; `render_states.cjs` compares state text, option labels, menu and objective call); census the firings against archived outcomes; then live runs, isolated first, then ladders at several seeds.
+Every lever is an env gate, off when unset in `decision.cjs` (a gate off renders the byte-identical prompt) and stamped into the run file's `build` (`driver/run_stats.cjs`). The runners fill in the default preset (`driver/preset.cjs`) for every flag the caller left unset, so a new lever stays out of the default run until it joins the preset; offline tools that require `decision.cjs` directly get no preset. The order that has worked: find the decision where lives go wrong in the archives; check the fact with the simulator or `route_clock`; probe the wording at that state (`probe_move_wording.cjs`, `@crit:` edits replace an option label); build it gated; unit test; re-pin `docs/simulate-clock-audit.md` for any new `arc.simulate` site (`test_simulate_clock.cjs` fails otherwise); blast it over the archives (gate off must give 0 diffs; `render_states.cjs` compares state text, option labels, menu and objective call); census the firings against archived outcomes; then live runs, isolated first, then ladders at several seeds.
 
 What the probes keep showing: a true fact on the option the model should **avoid** moves it; the same fact in the floor text, or on the option it should take, often does nothing or backfires. When two options are bad, label both.
 
