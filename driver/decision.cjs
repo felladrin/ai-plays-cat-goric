@@ -1901,7 +1901,7 @@ function gemJumpWindow(snap, gem) {
   // from there touches gem_c: every one lands on floor x 181..233 at y 187 first
   // (docs/results.md, 2026-10-11). Keep only launch x whose held jump, at the real
   // clock, touches the gem's box; silent when none does.
-  if (w && process.env.GEMJUMP_VERIFY === "1") {
+  if (w && (process.env.GEMJUMP_VERIFY === "1" || process.env.GEMJUMP_VERIFY === "2")) {
     const { simulate } = require("./arc.cjs");
     const mfG = (snap.drones.tl.y - 1) / 0.2;
     const hit = (cx, cy) => cx < gem.x + GEM_HALF_HEIGHT && cx + 1 > gem.x - GEM_HALF_HEIGHT && cy - snap.cat.height < gem.y + GEM_HALF_HEIGHT && cy > gem.y - GEM_HALF_HEIGHT;
@@ -1915,6 +1915,21 @@ function gemJumpWindow(snap, gem) {
     // that already clear (blast 2026-10-11); the falsity is the window with no
     // working launch at all.
     if (!ok.length) return null;
+    // GEMJUMP_VERIFY=2: state the verified launch segment nearest the cat instead
+    // of the envelope's range. L12 (jnc2w100_s9 ladder): on x 220..272 at y 231 the
+    // note said "jump and steer left from x 220..269 ... The cat is at x 246,
+    // inside that range"; held jump_left collects gem_c only from x 220..225 and
+    // 269..271, and from 246 it lands on y 165 instead, which the model took (0.81).
+    if (process.env.GEMJUMP_VERIFY === "2") {
+      const segs = [];
+      for (const x of ok) {
+        const last = segs[segs.length - 1];
+        if (last && x - last.hi <= 1.75 + 1e-9) last.hi = x; else segs.push({ lo: x, hi: x });
+      }
+      const dist = (sg) => (snap.cat.x < sg.lo ? sg.lo - snap.cat.x : snap.cat.x > sg.hi ? snap.cat.x - sg.hi : 0);
+      const best = segs.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      return { dir: w.dir, lo: Math.round(best.lo), hi: Math.round(best.hi) };
+    }
   }
   return w;
 }

@@ -20,5 +20,10 @@ assert.ok(!at(11, 249.75, 228, 225, "gem_c", [2]).includes("collects gem_c"), "v
 // True windows survive: L11 gem_a from y 114, L10 gem_c from the tower at y 140.
 assert.ok(at(11, 125.5, 114, 150, "gem_a").includes("A jump from this floor collects gem_a: jump and steer right from x 120..139."));
 assert.ok(at(10, 323, 140, 100, "gem_c").includes("A jump from this floor collects gem_c: jump and steer left from x 304..330."));
+// =2: the verified segment nearest the cat, not the envelope's range. L12 y231, gem_c:
+// held jump_left collects it only from x 220..225 and 269..271.
+assert.ok(at(12, 245.75, 231, 206, "gem_c", [0, 2]).includes("jump and steer left from x 220..269. The cat is at x 246, inside that range."), "=1: envelope range");
+process.env.GEMJUMP_VERIFY = "2";
+assert.ok(at(12, 245.75, 231, 206, "gem_c", [0, 2]).includes("jump and steer left from x 220..225. The cat is at x 246, right of that range: walk left into it before jumping."));
 delete process.env.GEMJUMP_VERIFY;
 console.log("test_gemjump_verify: Failed: 0");
