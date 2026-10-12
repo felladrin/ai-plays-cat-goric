@@ -675,7 +675,12 @@ const VIDEO_DIR = CFG.outPath("video");
     // getting closer. A non-improving distance is what "stuck" actually means,
     // and it catches the wide wander the old position-displacement signal missed.
     const distToObj = Math.hypot(d.targetPos.x - s.cat.x, d.targetPos.y - s.cat.y);
-    stallWindow.push({ key: posKey10(s.cat.x, s.cat.y), dist: distToObj });
+    stallWindow.push({ key: posKey10(s.cat.x, s.cat.y), dist: distToObj, obj: d.objective });
+    // STALL_OBJ (gated): the window compared distances to DIFFERENT objectives.
+    // L12 (jnc2w100_s9 ladder): 10 decisions spanning gem_b (69px away) and gem_a
+    // (68px away, after a 120px walk toward it) read as "improved 1px" and handed
+    // the fork to exploration, which sampled the jump back into the y108 pocket.
+    if (process.env.STALL_OBJ === "1") while (stallWindow[0].obj !== d.objective) stallWindow.shift();
     if (stallWindow.length > STALL_WINDOW) stallWindow.shift();
     if (stallWindow.length === STALL_WINDOW) {
       const bestNow = Math.min(...stallWindow.map((w) => w.dist));
