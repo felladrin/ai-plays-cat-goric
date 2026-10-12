@@ -60,6 +60,9 @@ Other endpoints are kept in the endpoint table because the negative results are 
 - **`halogen_menu`** — the same server answered the pre-0.13.8 way, by generating a menu letter and parsing it. Kept because the comparison against a true classifier interface is the interesting result, and it is now an A/B on identical state rather than two different pipelines.
 - **`clef`** — the hosted Decisions model `clef`, `/v1/systemone`. This is the endpoint with the best results: 8 of the 14 playable levels clear at two seeds on the current build (see the Clef section of [`../docs/results.md`](../docs/results.md)). It needs `DECISIONS_BASE_URL` and `DECISIONS_API_KEY`, read in-process from the gitignored env file at the repo root so the key never passes through a shell command or a log. It returns identical probabilities for an identical prompt, which makes it the cleanest endpoint for A/B work: two baseline runs of level 2 were identical.
 - **`systemone`** — any self-hosted model that answers `POST /v1/systemone`, set by `SYSTEMONE_BASE_URL` and `SYSTEMONE_MODEL`. See [`../docs/bring-your-own-model.md`](../docs/bring-your-own-model.md).
+- **`chat`** — any OpenAI-compatible chat server that returns `top_logprobs` for the first generated token and continues a trailing assistant message (llama.cpp's `llama-server`), set by `CHAT_BASE_URL` and `CHAT_MODEL`.
+
+Both runners start from the default preset (`preset.cjs`): the flag set that beat the game. Set a flag to override it (`FALL_BLAME=0`), or `PRESET=none` for the bare baseline. A `replay` run must use the build of the archive it replays, so give it `PRESET=none` and that archive's flags.
 
 ## Running it
 
@@ -85,6 +88,9 @@ LLAMA_BASE_URL=http://127.0.0.1:1234 node run_full.cjs qwen_local
 
 # or the best current endpoint (key from the repo-root env file, no flag needed)
 node run_level.cjs clef 10
+
+# benchmark a model: the whole ladder once per seed, one comparable result
+SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=my-model npm run benchmark -- systemone 9 11
 ```
 
 A level run takes 40 to 1500 seconds and writes `out/run_level_<n>_clef.json` plus a
@@ -125,6 +131,8 @@ Everything machine-specific is in `config.cjs` and overridable by environment va
 | `SYSTEMONE_BASE_URL` | — | required by `systemone`. Your decision model server, without `/v1` |
 | `SYSTEMONE_MODEL` | — | required by `systemone`. Sent as `model` and stamped in the run file |
 | `SYSTEMONE_API_KEY` | unset | optional bearer token for `systemone` |
+| `CHAT_BASE_URL` | — | required by `chat`. Your OpenAI-compatible chat server, without `/v1` |
+| `CHAT_MODEL` | — | required by `chat`. Sent as `model` and stamped in the run file |
 | `HARNESS_URL` | `http://127.0.0.1:5173/harness.html` | where the harness is served |
 | `OUT_DIR` | `../out` | run artifacts |
 | `PLAYWRIGHT_MODULE` | — | path to a global playwright install |
@@ -133,8 +141,9 @@ Everything machine-specific is in `config.cjs` and overridable by environment va
 | `VIDEO` | unset | `1` records `run_level.cjs` to `out/level_<n>_<endpoint>.webm` |
 | `DEMO_KEEP_LEVELS` | unset | comma-separated level indices the ladder may play. Unset means the full ladder, levels 0 to 13, with no skipping |
 | `DEMO_MAX_DEATHS_PER_LEVEL` | `25` | per-level diagnostic abort ceiling for a demo run. Without `DEMO_KEEP_LEVELS` the ceiling stays the measurement default of 10 |
-| `MAX_DEATHS_PER_LEVEL` | `10` | per-level death ceiling on a non-demo ladder run. Raise for a continuous recording take where a level may need more lives |
-| `MAX_TOTAL_STEPS` | `40000` | total step ceiling for a ladder run. Same recording rationale |
+| `PRESET` | `winning` | the flag set both runners fill in for every flag left unset (`preset.cjs`): the levers that beat the game, plus the ladder caps below. `none` runs the bare baseline. Stamped in the run file's `build` |
+| `MAX_DEATHS_PER_LEVEL` | `100` (`10` with `PRESET=none`) | per-level death ceiling on a non-demo ladder run |
+| `MAX_TOTAL_STEPS` | `150000` (`40000` with `PRESET=none`) | total step ceiling for a ladder run |
 | `ENDPOINT` | `qwen_local` | which endpoint `survey_levels.sh` runs |
 
 If Playwright reports `Executable doesn't exist at .../chromium_headless_shell-<n>`, the
@@ -171,6 +180,8 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `jev.cjs` | endpoint clients (classifier API, llama.cpp logprobs, chat fallback) |
 | `run_level.cjs` | play one level |
 | `run_full.cjs` | play the ladder, with an L0 regression gate |
+| `preset.cjs` | the default flag set both runners apply first |
+| `benchmark.cjs` | run the ladder per seed and write `benchmark.json` |
 | `config.cjs` | environment resolution |
 | `physics.cjs`, `level_data.cjs` | constants mirrored from the game |
 | `probe.cjs`, `dump.cjs`, `overlay_test.cjs` | inspection tools (need live harness + Playwright) |

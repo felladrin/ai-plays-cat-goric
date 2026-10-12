@@ -10,7 +10,9 @@ model=$1 seed=$2; shift 2
 if (( $# )); then levels=($@); else levels=(0 1 2 3 4 5 6 7 8 9 10 11 12 13); fi
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root/driver"
-# The build every endpoint is compared on (docs/results.md, Clef section).
+# The build every endpoint is compared on (docs/results.md, Clef section), not the
+# runners' default preset.
+export PRESET=none
 export PRUNE_FATAL=1 MOVE_INSTR=2 JUMP_FACTS=1 HOLD_FIX=1 COL_FACTS=1 GEM_FACTS=1 STICKY_OBJECTIVE=1
 export SEED=$seed SYSTEMONE_MODEL=$model
 export OUT_DIR="$root/out/byom/$model/s$seed"

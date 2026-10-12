@@ -37,7 +37,27 @@ The question id is `objective` or `move`, and the option names change from call 
 
 The probabilities are not just for show: the policy samples from them at positions where the top answer already failed (see [architecture.md](architecture.md)), so a server that returns only the top choice won't work.
 
-## Run it
+## Benchmark it on the whole ladder
+
+One command plays the whole game (levels 0 to 13 in one run, up to 100 lives per level) once per seed, with the flag set that beat the game, and writes one comparable result:
+
+```sh
+npm run harness                                    # terminal 1: the game page on :5173
+cd driver
+SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=my-model npm run benchmark -- systemone
+```
+
+Seeds default to 6, 7, 9 and 11; name others after the endpoint (`npm run benchmark -- systemone 9`). Each ladder takes about an hour on one GPU. The result lands in `out/benchmark/<endpoint>-<time>/benchmark.json`: for each seed, won or not, the last level reached, deaths per level, total deaths, steps, classifier calls, wall time, the model id and the stamped build. The last line printed is the one-line summary.
+
+A chat model works the same way through the `chat` endpoint, if its server returns `top_logprobs` for the first generated token and continues a trailing assistant message (llama.cpp's `llama-server` does):
+
+```sh
+CHAT_BASE_URL=http://127.0.0.1:8080 CHAT_MODEL=my-model npm run benchmark -- chat
+```
+
+## Run each level on its own
+
+The sweep below runs each level in isolation on the older build every model in the leaderboard was compared on (`PRESET=none` plus seven flags), so its numbers stay comparable with that table.
 
 ```sh
 npm run harness                                    # terminal 1: the game page on :5173

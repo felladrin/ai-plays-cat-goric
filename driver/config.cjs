@@ -143,6 +143,12 @@ module.exports = {
   get SYSTEMONE_MODEL() {
     return requiredEnv("SYSTEMONE_MODEL", "Set it to the model id your server expects in the request body.");
   },
+  get CHAT_BASE_URL() {
+    return requiredEnv("CHAT_BASE_URL", "Point it at your OpenAI-compatible chat server, without /v1, e.g. http://127.0.0.1:8080.");
+  },
+  get CHAT_MODEL() {
+    return requiredEnv("CHAT_MODEL", "Set it to the model name your chat server expects in the request body.");
+  },
   OUT_DIR,
   outPath,
 };

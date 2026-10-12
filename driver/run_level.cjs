@@ -20,6 +20,10 @@
 
 "use strict";
 
+// First, before any module that reads the environment at load: fill in the
+// default flag set (preset.cjs). PRESET=none runs the bare baseline.
+require("./preset.cjs").applyPreset();
+
 const fs = require("fs");
 const CFG = require("./config.cjs");
 const { chromium } = CFG.resolvePlaywright();
@@ -147,6 +151,20 @@ const ENDPOINTS = {
     auth: process.env.SYSTEMONE_API_KEY,
     get model() {
       return CFG.SYSTEMONE_MODEL;
+    },
+    minIntervalMs: 0,
+    decide,
+  },
+  // Any OpenAI-compatible chat server that returns top_logprobs for the first
+  // generated token and continues a trailing assistant message (llama.cpp
+  // llama-server). How to plug one in: docs/bring-your-own-model.md.
+  chat: {
+    kind: "qwen-local",
+    get baseUrl() {
+      return CFG.CHAT_BASE_URL;
+    },
+    get model() {
+      return CFG.CHAT_MODEL;
     },
     minIntervalMs: 0,
     decide,
