@@ -28,8 +28,8 @@
 // gets `mixed` and should annotate only when some pick is alive and some is
 // not.
 //
-// The offline analysis CLI lives in experiments/route_clock.cjs and
-// experiments/firstpick_sweep.cjs; this file is the canonical implementation.
+// The offline analysis CLI lives in research/route_clock.cjs and
+// research/firstpick_sweep.cjs; this file is the canonical implementation.
 
 const CFG = require("./physics.cjs");
 const REACH = require("./reachability.cjs");

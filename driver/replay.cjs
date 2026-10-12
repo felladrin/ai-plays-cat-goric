@@ -22,7 +22,7 @@
 // On a wrapper-level error (including the guard), the live snap, levelGems and
 // deathHistory are written verbatim to REPLAY_DUMP (default
 // out/empty_menu_snap.json) so the failing state is a fixture on disk instead
-// of a hand reconstruction. driver/fixtures/empty_objective_menu_l6.json is one
+// of a hand reconstruction. driver/test/fixtures/empty_objective_menu_l6.json is one
 // such dump, consumed by test_empty_objective_menu.cjs.
 
 const fs = require("fs");

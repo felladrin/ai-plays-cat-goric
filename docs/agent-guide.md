@@ -48,8 +48,8 @@ means an edit made mid-sweep cannot leak into the runs that are measuring it.
   zero-death clear only varies the menu order, not the trajectory, so identical seeds are
   evidence of menu-order robustness, not of independent replication.
 - Before running a level, check the change can fire on it offline. A level where the change
-  cannot fire cannot distinguish the builds. `driver/experiments/firing_counts.cjs` and
-  `driver/experiments/census_gem_from.cjs` do this in milliseconds.
+  cannot fire cannot distinguish the builds. `driver/research/firing_counts.cjs` and
+  `driver/research/census_gem_from.cjs` do this in milliseconds.
 - Never read a run archive while a run is writing it. `pgrep -f run_level.cjs` first.
 - A new prompt fact must be regression-tested on the levels that already clear. Every
   harmful fact in [dead-ends.md](dead-ends.md) was caught only there, never by a level

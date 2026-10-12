@@ -66,7 +66,7 @@ function llamaBaseUrl() {
   if (!process.env.LLAMA_BASE_URL) {
     throw new Error(
       "LLAMA_BASE_URL is unset. Point it at the halogen tunnel on port 1235, " +
-        "which driver/experiments/lvl.sh exports for you. It is deliberately " +
+        "which driver/research/lvl.sh exports for you. It is deliberately " +
         "not defaulted: port 1234 answers 200 with an empty body, so a default " +
         "turns a wrong port into a silent failure instead of a startup error.",
     );

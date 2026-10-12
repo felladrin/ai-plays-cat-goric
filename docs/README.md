@@ -4,6 +4,8 @@ A classifier LLM plays [Cat Goric: Escape from the Warp Chamber](https://js13kga
 
 ## Where it stands
 
+Update (2026-10-12): PurpleMIST-Flash-1.0 now clears the whole ladder in one run, at three seeds of four, with the runners' default flag set. The numbers are in [benchmark.md](benchmark.md). The rest of this section describes the state before that, so its "no full ladder run has been won" no longer holds.
+
 **Current best, on `clef`** (the hosted Decisions model), build `PRUNE_FATAL=1 MOVE_INSTR=2 JUMP_FACTS=1 HOLD_FIX=1 COL_FACTS=1 GEM_FACTS=1 STICKY_OBJECTIVE=1` with `ATTRIB` on: **8 of the 14 playable levels clear at two seeds each** — 0, 1, 2, 5, 7, 8, 9 and 10. Level 4 clears at one seed of two. Levels 3, 6, 11, 12 and 13 fail. Per-level counts, per-seed, and what each of the three recent level changes needed are in the Clef section of [results.md](results.md).
 
 Across every endpoint ever measured, 12 of the 14 have cleared at least once (0 to 11). Two have never cleared on any build: **12 and 13**. Level 11 cleared once, at one seed of two, on Darwin-27B-ZTC (2026-10-10). Levels 3 and 6, which Clef fails on the current build, clear at both seeds on the current build with PurpleMIST-Flash-1.0 (2026-10-09; level 6 for the first time on any build). That model clears 7 of 14 at both seeds, a different set from Clef's 8; see the decision-models section of [results.md](results.md#decision-models-tried-typed-decisions-leaderboard-2026-10-09). The level-14 victory screen has been reached, but only in a demo run that skips the levels outside the solid set of its time (see [the demo mode in driver/README.md](../driver/README.md)). No full ladder run has been won. A continuous demo-mode recording of the eight clearing levels, and a 2:33 time-warped cut of the same take, exist under `out/exp_record` on the machine where they were run; `out/` is gitignored. The take is documented in [results.md](results.md).
@@ -29,8 +31,11 @@ A guide for continuing the project with a coding agent is in [agent-guide.md](ag
 | [dead-ends.md](dead-ends.md) | Ideas measured and rejected. Do not re-run these. |
 | [open-problems.md](open-problems.md) | The live blocker, plus defects found and left in place. |
 | [method.md](method.md) | How to measure here without wasting a night, and the environment traps. |
+| [benchmark.md](benchmark.md) | How to score your own model on the whole game, what the score means, and the results so far. |
 | [bring-your-own-model.md](bring-your-own-model.md) | How to run the game against your own decision model: the request shape, the sweep script, the adapter, and a sandbox recipe. |
 | [agent-guide.md](agent-guide.md) | Contract and reading order for a fresh agent session: the task, the measurement rules, what is measured dead, and a paste-ready prompt. |
+
+The per-investigation write-ups and audits that [results.md](results.md) cites are in [research/](research/).
 
 Operating instructions (setup, commands, configuration, endpoints) stay in [`../driver/README.md`](../driver/README.md).
 

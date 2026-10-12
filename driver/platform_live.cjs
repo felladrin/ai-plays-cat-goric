@@ -9,7 +9,7 @@
 // (kontra getWorldRect). For a side laser the box edge tracks the beam exactly,
 // 20px * 0.01 = 0.2px per frame = droneSpeed, so the scale is a function of the
 // laser clock alone. The beam's inner edge sits a half-thickness inside the drone
-// line; minLaserHalfSize matches the probe (experiments/probe_platform_shrink.cjs,
+// line; minLaserHalfSize matches the probe (research/probe_platform_shrink.cjs,
 // L10 tower x 330: 0.83 at mf 59 and 0.63 at mf 79, this formula 0.82 and 0.62).
 // Top and bottom beams shrink a platform 0.01 per frame from first contact,
 // approximated here by moving frames (an idle frame in contact shrinks it too).

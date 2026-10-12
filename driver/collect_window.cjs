@@ -13,7 +13,7 @@
 // a floor that still exists under the launch x at that clock, and a held jump
 // (or standing) whose arc touches the gem's 16x16 box before the lasers kill it.
 //
-// Wording, from the objective-call probe (experiments/probe_objective_wording.cjs):
+// Wording, from the objective-call probe (research/probe_objective_wording.cjs):
 // framed as an opportunity it raised the gem (L11 gem_a 0.113 -> 0.398, L10 gem_c
 // 0.194 -> 0.515); framed as a loss it lowered it (ROUTE_BURN, L10 0.587 -> 0.188
 // live). The second clause is added only when it is true for every other live gem.
