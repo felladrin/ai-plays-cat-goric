@@ -18,5 +18,12 @@ assert.ok(!call(246, 231).state.includes("along this floor reaches it"));
 process.env.PORTAL_WALK = "2";
 assert.strictEqual(call(212.5, 165).questions.move.criteria.left, "walk left (walking along this floor reaches the exit portal at x 196)");
 assert.ok(!call(212.5, 165).state.includes(SENT));
+// Off the floor's end: L13, floor x 206..258 at y 136, mf 228; held left off x 206 enters the portal.
+const T13 = require("./experiments/gem_table.cjs")()[13];
+const l13 = { ...at(243.25, 136, 228), level: 13 };
+process.env.PORTAL_WALK = "1";
+assert.ok(D.buildMoveCall(l13, T13, "portal", []).state.includes("Walking left off this floor's left end (x 206) carries the cat into it."));
+process.env.PORTAL_WALK = "2";
+assert.strictEqual(D.buildMoveCall(l13, T13, "portal", []).questions.move.criteria.left, "walk left (off this floor's left end at x 206 the cat falls into the exit portal)");
 delete process.env.PORTAL_WALK;
 console.log("test_portal_walk: Failed: 0");

@@ -1224,7 +1224,9 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
     if (process.env.PORTAL_WALK === "1" && objectiveName === "portal") {
       const pw = portalWalk(snap, target);
       const i = pw ? lines.findIndex((l) => l.startsWith("The cat's objective is")) : -1;
-      if (i >= 0) lines[i] += ` Walking ${pw.side} along this floor reaches it: the portal begins ${Math.round(pw.dist)}px to the ${pw.side}, at x ${Math.round(pw.edge)}.`;
+      if (i >= 0) lines[i] += pw.offEnd
+        ? ` Walking ${pw.side} off this floor's ${pw.side} end (x ${Math.round(pw.edge)}) carries the cat into it.`
+        : ` Walking ${pw.side} along this floor reaches it: the portal begins ${Math.round(pw.dist)}px to the ${pw.side}, at x ${Math.round(pw.edge)}.`;
     }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
@@ -1311,7 +1313,9 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
   if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
     const pw = portalWalk(snap, target);
-    if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = `walk ${pw.side} (walking along this floor reaches the exit portal at x ${Math.round(pw.edge)})`;
+    if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = pw.offEnd
+      ? `walk ${pw.side} (off this floor's ${pw.side} end at x ${Math.round(pw.edge)} the cat falls into the exit portal)`
+      : `walk ${pw.side} (walking along this floor reaches the exit portal at x ${Math.round(pw.edge)})`;
   }
   return { state, questions, target };
 }
@@ -2130,8 +2134,22 @@ function portalWalk(snap, portal) {
   const top = portal.y - PORTAL_HALF, bot = portal.y + PORTAL_HALF, L = portal.x - PORTAL_HALF, R = portal.x + PORTAL_HALF;
   if (!(run.y - snap.cat.height < bot && run.y > top)) return null;
   if (snap.cat.x + 1 > L && snap.cat.x < R) return null;
-  if (portal.x < snap.cat.x) return run.left < R ? { side: "left", edge: R, dist: snap.cat.x - R } : null;
-  return run.right + 1 > L ? { side: "right", edge: L, dist: L - snap.cat.x - 1 } : null;
+  if (portal.x < snap.cat.x && run.left < R) return { side: "left", edge: R, dist: snap.cat.x - R };
+  if (portal.x > snap.cat.x && run.right + 1 > L) return { side: "right", edge: L, dist: L - snap.cat.x - 1 };
+  // Off the floor's end: L13 (jnc2w100_s9 ladder), floor x 206..258 at y 136 at
+  // mf 228 with all three gems, the model took jump_left (0.63; held, it dies at
+  // the top laser) over left; held left off the left end (x 206) enters the portal
+  // box 6 frames after the edge (docs/flash-l13-analysis.md, the same walk-off).
+  // Real clock: the walk to the end first, then the held step-off; the portal
+  // touch must come before any death.
+  const side = portal.x < snap.cat.x ? "left" : "right";
+  const end = side === "left" ? run.left : run.right;
+  const mf = (snap.drones.tl.y - 1) / 0.2 + Math.abs(snap.cat.x - end) / 1.75;
+  let hitF = null;
+  const r = require("./arc.cjs").simulate(snap.level, end, run.y, 0, snap.cat.height, side, mf, { grounded: true, maxFrames: 120,
+    onFrame: (fx, fy, f) => { if (hitF == null && fx < R && fx + 1 > L && fy - snap.cat.height < bot && fy > top) hitF = f; } });
+  if (hitF != null && (r.outcome !== "laser" || r.frames >= hitF)) return { side, edge: end, offEnd: true };
+  return null;
 }
 
 function gemJumpNote(snap, name, gem) {
