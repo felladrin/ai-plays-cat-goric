@@ -1221,6 +1221,11 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       const pj = portalJumpNote(snap, target);
       if (pj) lines.push(pj);
     }
+    if (process.env.PORTAL_WALK === "1" && objectiveName === "portal") {
+      const pw = portalWalk(snap, target);
+      const i = pw ? lines.findIndex((l) => l.startsWith("The cat's objective is")) : -1;
+      if (i >= 0) lines[i] += ` Walking ${pw.side} along this floor reaches it: the portal begins ${Math.round(pw.dist)}px to the ${pw.side}, at x ${Math.round(pw.edge)}.`;
+    }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
     if (process.env.CORRIDOR_CLOCK === "1") {
@@ -1304,6 +1309,10 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
   };
   if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
+  if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
+    const pw = portalWalk(snap, target);
+    if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = `walk ${pw.side} (walking along this floor reaches the exit portal at x ${Math.round(pw.edge)})`;
+  }
   return { state, questions, target };
 }
 
@@ -2106,6 +2115,23 @@ function portalJumpNote(snap, portal) {
     : cx > w.hi ? ` The cat is at x ${cx}, right of that range: walk left into it before jumping.`
     : ` The cat is at x ${cx}, inside that range.`;
   return `A jump from this floor reaches the exit portal: jump and steer ${w.dir} from x ${w.lo}..${w.hi}.${where}`;
+}
+
+// PORTAL_WALK (gated): portalJumpNote is silent when walking along this floor
+// reaches the portal, and nothing else says so. L12 (jnc2w100_s9 ladder): the one
+// life holding all three gems stood on x 58..215 at y 165 at x 212.5, the portal
+// box (x 164..196, y 134..166) 17px to the left along the floor, and jumped away.
+// Returns the side and the box edge the cat walks into, or null.
+function portalWalk(snap, portal) {
+  if (!snap.onPlatform || snap.gemsCollected < 3) return null;
+  const REACH = require("./reachability.cjs");
+  const run = REACH.runsOf(snap.level).find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
+  if (!run) return null;
+  const top = portal.y - PORTAL_HALF, bot = portal.y + PORTAL_HALF, L = portal.x - PORTAL_HALF, R = portal.x + PORTAL_HALF;
+  if (!(run.y - snap.cat.height < bot && run.y > top)) return null;
+  if (snap.cat.x + 1 > L && snap.cat.x < R) return null;
+  if (portal.x < snap.cat.x) return run.left < R ? { side: "left", edge: R, dist: snap.cat.x - R } : null;
+  return run.right + 1 > L ? { side: "right", edge: L, dist: L - snap.cat.x - 1 } : null;
 }
 
 function gemJumpNote(snap, name, gem) {
