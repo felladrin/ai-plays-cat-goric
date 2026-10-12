@@ -1290,7 +1290,60 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
     },
   };
   if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
+  if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
   return { state, questions, target };
+}
+
+// LAND_LATE (gated): label a move whose landing leaves the objective out of reach
+// in time, when it is still in reach from this floor. L13: after gem_a, the lives
+// on x 223..275 at y 197 (mf ~161, gem_c's deadline 250) walked or jumped left
+// onto x 158..210 at y 252, from which route_clock finds no route that collects
+// gem_c before its deadline, while `jump` lands on x 206..258 at y 136, from which
+// one exists. Probe (docs/results.md, 2026-10-12): the clause on both left moves
+// moves jump 0.212 -> 0.846; on one of them only, the mass moves to the other.
+// route_clock is optimistic (walk envelope, no interception), so "no longer" is a
+// proof; the arrival clock is the held move's own landing frame.
+function landLate(snap, target, criteria) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const RC = require("./route_clock.cjs");
+  const { simulate } = require("./arc.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const runAt = (x, y) => runs.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+  const here = runAt(snap.cat.x, snap.cat.y);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const gems = [[target.x, target.y]];
+  const gridX = (q, x) => {
+    const lo = Math.ceil(q.left / RC.X_STEP) * RC.X_STEP;
+    const hi = Math.floor(q.right / RC.X_STEP) * RC.X_STEP;
+    return Math.min(hi, Math.max(lo, Math.round(x / RC.X_STEP) * RC.X_STEP));
+  };
+  const inTime = (q, x, t) => RC.orderFeasibleN(snap.level, gems, [0], REACH.runKey(q), gridX(q, x), t, 0).collectTimes.length === 1;
+  if (!inTime(here, snap.cat.x, mf)) return;
+  const late = {};
+  for (const k of Object.keys(criteria)) {
+    let r, prefix;
+    if (k === "left" || k === "right") {
+      const end = k === "left" ? here.left : here.right;
+      const walkF = Math.max(0, Math.abs(end - snap.cat.x) / PHYS.catWalkSpeed);
+      r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true });
+      prefix = `walk ${k} (off this floor's ${k} end at x ${Math.round(end)} the cat lands on`;
+    } else if (k.startsWith("jump")) {
+      r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
+      prefix = `${criteria[k]} (lands on`;
+    } else continue;
+    if (!r || r.outcome !== "landed") continue;
+    const q = runAt(r.x, r.y);
+    if (!q || q === here) continue;
+    if (inTime(q, r.x, r.mf)) continue;
+    late[k] = `${prefix} platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} can no longer be reached in time)`;
+  }
+  // A clause on every option says nothing about which one to take.
+  if (Object.keys(late).length === Object.keys(criteria).length) return;
+  // A label that already carries a clause (JUMP_NOCOLLECT) keeps it.
+  for (const [k, v] of Object.entries(late)) if (!criteria[k].includes("(")) criteria[k] = v;
 }
 
 // JUMP_NOCOLLECT (gated): label a jump that lands on a floor the objective cannot

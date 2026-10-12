@@ -1,0 +1,26 @@
+"use strict";
+// LAND_LATE: a move whose landing leaves the objective out of reach in time is labelled.
+const assert = require("assert");
+for (const k of ["PRUNE_FATAL", "JUMP_FACTS", "HOLD_FIX", "COL_FACTS", "GEM_FACTS", "STICKY_OBJECTIVE", "EXIT_FACT", "RISE_LABEL", "NEG_HOLD", "PORTAL_DESC", "GAP_DROP"]) process.env[k] = "1";
+process.env.MOVE_INSTR = "2";
+delete process.env.LAND_LATE;
+const D = require("./decision.cjs");
+const RC = require("./route_clock.cjs");
+const all = require("./experiments/gem_table.cjs")()[13];
+// route_clock: from x 158..210 at y 252 gem_c (180,51) is reachable in time at mf 150, not at mf 175.
+assert.strictEqual(RC.orderFeasibleN(13, [[180, 51]], [0], "floor(158..210@252)", 200, 150, 0).collectTimes.length, 1);
+assert.strictEqual(RC.orderFeasibleN(13, [[180, 51]], [0], "floor(158..210@252)", 200, 175, 0).collectTimes.length, 0);
+// L13 fork: x 232.75 on x 223..275 at y 197, mf 161, only gem_c left.
+const at = (mf) => ({ level: 13, gemsCollected: 2, aliveGems: 1, gemPositions: [{ x: 180, y: 51 }], moving: false, onPlatform: true,
+  cat: { x: 232.75, y: 197, dx: 0, dy: 0, height: 18 }, drones: { tl: { x: 0, y: 1 + 0.2 * mf }, tr: { x: 359 - 0.2 * mf, y: 0 }, bl: { x: 1 + 0.2 * mf, y: 310 }, br: { x: 360, y: 310 - 0.2 * mf } } });
+const crit = (mf) => D.buildMoveCall(at(mf), all, "gem_c", []).questions.move.criteria;
+assert.strictEqual(crit(161).left, "walk left", "gate off");
+process.env.LAND_LATE = "1";
+const c = crit(161);
+assert.strictEqual(c.left, "walk left (off this floor's left end at x 223 the cat lands on platform x 158..210 at y 252, from which gem_c can no longer be reached in time)");
+assert.strictEqual(c.jump_left, "jump and steer left (lands on platform x 158..210 at y 252, from which gem_c can no longer be reached in time)");
+assert.strictEqual(c.jump, "jump straight up", "the move that keeps gem_c in reach is not labelled");
+// Earlier, y252 still reaches gem_c in time: no clause.
+assert.strictEqual(crit(100).left, "walk left");
+delete process.env.LAND_LATE;
+console.log("test_land_late: Failed: 0");
