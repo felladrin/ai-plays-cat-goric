@@ -778,6 +778,16 @@ const r2 = (n) => Math.round(n * 100) / 100;
         return { done: false, airborne: !res.s.onPlatform, snap: res.s };
       },
       holdIsSafe: (cur) => heldActionIsSafe(cur, d.move),
+      // WALKOFF_CLEAR (gated): release the keys at the edge after a walk-off and
+      // re-ask once the cat is clear of the floor's side (cadence.cjs). =2 only
+      // when the objective is a descent or lies below this floor: on L5 (wo100_s9
+      // ladder) walks toward an ascent launch at a floor's end overshot the edge,
+      // and =1 committed the cat to drops the airborne steer-back used to undo.
+      walkOff: (process.env.WALKOFF_CLEAR === "1" ||
+        (process.env.WALKOFF_CLEAR === "2" && (/^descent/.test(d.objective) || (d.targetPos && d.targetPos.y > s.cat.y))))
+        && s.onPlatform && !d.move.includes("jump") && d.move !== "none"
+        ? { floorY: s.cat.y, release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
+        : undefined,
     });
 
     if (FRAME_TRACE) {

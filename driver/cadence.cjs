@@ -46,13 +46,57 @@ function initialBudget(grounded, isJump, K) {
 // mid-air reversal rate on level 3 (which then took zero gems in 3000 steps)
 // against 7.5% on level 2 (which cleared with no deaths).
 // Returns the number of frames actually stepped.
-async function stepBatch({ grounded, isJump, K, step, holdIsSafe }) {
+// WALKOFF_CLEAR (gated in the runners): a walk that carries the cat off its
+// floor ends at the edge. Measured on L2's left end, L8's right end and L12's y108
+// (docs/results.md, 2026-10-11): the airborne re-decide 3 frames after stepping
+// off came while the cat was still beside the floor it left, and the model's steer
+// toward its objective touched that floor's side and put it back on top, over and
+// over until the lasers closed. With `walkOff`, the keys are released at the edge
+// and the model is asked again once the cat's head is below that floor's
+// underside (it can no longer side-snap onto it), or it lands, or WALKOFF_MAX
+// frames pass - but only when arc.simulate says the no-input fall survives until
+// then; otherwise the normal cadence applies. The model still makes every choice;
+// this only moves WHEN it is asked after a walk-off.
+const WALKOFF_MAX = 20;
+function walkOffDropSafe(snap, floorY) {
+  const PHYS = require("./physics.cjs");
+  const { simulate } = require("./arc.cjs");
+  const h = snap.cat.height;
+  const under = floorY + PHYS.platformHeight * (1 - PHYS.platformAnchorY);
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  // Safe when the no-input fall lands, or clears the floor's side at least
+  // AIR_REDECIDE_FRAMES before it would die: after clearing, the model is asked
+  // and can steer, which is the point (L8's right end only survives that way).
+  let clearF = null;
+  const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, "none", mf, {
+    grounded: false, maxFrames: 60, onFrame: (x, y, f) => { if (clearF == null && y - h > under) clearF = f; },
+  });
+  if (r.outcome === "laser" || r.outcome === "void") return clearF != null && r.frames - clearF >= AIR_REDECIDE_FRAMES;
+  return true;
+}
+
+async function stepBatch({ grounded, isJump, K, step, holdIsSafe, walkOff }) {
   let n = initialBudget(grounded, isJump, K);
   let extended = false;
   let i = 0;
   for (; i < n; i++) {
     const res = await step(i);
     if (res && res.done) return i + 1;
+    if (walkOff && grounded && !isJump && res && res.airborne === true && res.snap) {
+      if (walkOffDropSafe(res.snap, walkOff.floorY) === true) {
+        const PHYS = require("./physics.cjs");
+        const under = walkOff.floorY + PHYS.platformHeight * (1 - PHYS.platformAnchorY);
+        await walkOff.release();
+        let k = 0;
+        for (; k < WALKOFF_MAX; k++) {
+          const r = await step(i + 1 + k);
+          if (r && r.done) return i + 2 + k;
+          if (!r || r.airborne !== true || (r.snap && r.snap.cat.y - r.snap.cat.height > under)) { k++; break; }
+        }
+        if (walkOff.log) walkOff.log(k);
+        return i + 1 + k;
+      }
+    }
     // The jump actually left the ground: give it the airborne cadence, ONCE.
     // Extending more than once is what made the loop unbounded.
     if (!extended && grounded && isJump && res && res.airborne === true) {
@@ -68,4 +112,4 @@ async function stepBatch({ grounded, isJump, K, step, holdIsSafe }) {
   return i;
 }
 
-module.exports = { AIR_REDECIDE_FRAMES, WALK_FRAMES, MAX_HELD_FRAMES, initialBudget, stepBatch };
+module.exports = { AIR_REDECIDE_FRAMES, WALK_FRAMES, MAX_HELD_FRAMES, WALKOFF_MAX, initialBudget, stepBatch, walkOffDropSafe };
