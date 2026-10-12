@@ -22,5 +22,11 @@ assert.strictEqual(c.jump_left, "jump and steer left (lands on platform x 158..2
 assert.strictEqual(c.jump, "jump straight up", "the move that keeps gem_c in reach is not labelled");
 // Earlier, y252 still reaches gem_c in time: no clause.
 assert.strictEqual(crit(100).left, "walk left");
+// A walk that leads to a working launch point is not labelled: L4's opening, where
+// jump_right from before the end at x 147 crosses to x 199..251 at y 93.
+const T4 = require("./experiments/gem_table.cjs")()[4];
+const l4 = { level: 4, gemsCollected: 0, aliveGems: 3, gemPositions: T4.map((g) => ({ x: g[0], y: g[1] })), moving: false, onPlatform: true,
+  cat: { x: 129.75, y: 93, dx: 0, dy: 0, height: 18 }, drones: { tl: { x: 0, y: 1 + 0.2 * 6 }, tr: { x: 359 - 0.2 * 6, y: 0 }, bl: { x: 1 + 0.2 * 6, y: 310 }, br: { x: 360, y: 310 - 0.2 * 6 } } };
+assert.strictEqual(D.buildMoveCall(l4, T4, "gem_a", []).questions.move.criteria.right, "walk right");
 delete process.env.LAND_LATE;
 console.log("test_land_late: Failed: 0");

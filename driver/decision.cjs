@@ -1377,6 +1377,21 @@ function landLate(snap, target, criteria) {
       r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
       if (hit || (Math.min(snap.cat.x, end) < target.x + G && Math.max(snap.cat.x, end) + 1 > target.x - G && touches(target.x, snap.cat.y))) continue;
       if (envelopeCollects(end, false)) continue;
+      // The walk is also the way to a launch point: skip it when a jump the same
+      // way, from anywhere between the cat and the end, lands where the objective
+      // is still in reach in time. L4's opening (all100_s9 ladder): "walk right"
+      // was labelled for walking off the end at x 147, but the winning line walks
+      // right only to jump_right across to x 199..251 at y 93; the label moved the
+      // model to an early jump_right that missed.
+      let launch = false;
+      for (let x = snap.cat.x; !launch && (k === "left" ? x >= end : x <= end); x += k === "left" ? -PHYS.catWalkSpeed : PHYS.catWalkSpeed) {
+        const t = mf + Math.abs(x - snap.cat.x) / PHYS.catWalkSpeed;
+        const j = simulate(snap.level, x, snap.cat.y, 0, snap.cat.height, `jump_${k}`, t, { grounded: true });
+        if (j.outcome !== "landed") continue;
+        const jq = runAt(j.x, j.y);
+        if (jq && jq !== here && inTime(jq, j.x, j.mf)) launch = true;
+      }
+      if (launch) continue;
       prefix = `walk ${k} (off this floor's ${k} end at x ${Math.round(end)} the cat lands on`;
     } else if (k.startsWith("jump")) {
       let hit = false;
