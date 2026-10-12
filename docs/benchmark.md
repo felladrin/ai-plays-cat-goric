@@ -72,5 +72,3 @@ Open a pull request that adds your row to the table above and your entry to [res
 - the model id, and how you served it (server, version, quantization),
 - the exact command,
 - the `benchmark.json` file (attach it to the pull request).
-
-A model must be downloadable by anyone: models that ask you to request access are out of scope.
