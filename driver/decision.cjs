@@ -1335,16 +1335,24 @@ function landLate(snap, target, criteria) {
   };
   const inTime = (q, x, t) => RC.orderFeasibleN(snap.level, gems, [0], REACH.runKey(q), gridX(q, x), t, 0).collectTimes.length === 1;
   if (!inTime(here, snap.cat.x, mf)) return;
+  // A move whose own arc collects the gem is not one that loses it (L11: jump_right
+  // from x 181 passes through gem_a on the way to the floor it lands on).
+  const G = 8;
+  const touches = (fx, fy) => fx < target.x + G && fx + 1 > target.x - G && fy - snap.cat.height < target.y + G && fy > target.y - G;
   const late = {};
   for (const k of Object.keys(criteria)) {
     let r, prefix;
     if (k === "left" || k === "right") {
       const end = k === "left" ? here.left : here.right;
       const walkF = Math.max(0, Math.abs(end - snap.cat.x) / PHYS.catWalkSpeed);
-      r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true });
+      let hit = false;
+      r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
+      if (hit || (Math.min(snap.cat.x, end) < target.x + G && Math.max(snap.cat.x, end) + 1 > target.x - G && touches(target.x, snap.cat.y))) continue;
       prefix = `walk ${k} (off this floor's ${k} end at x ${Math.round(end)} the cat lands on`;
     } else if (k.startsWith("jump")) {
-      r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
+      let hit = false;
+      r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
+      if (hit) continue;
       prefix = `${criteria[k]} (lands on`;
     } else continue;
     if (!r || r.outcome !== "landed") continue;

@@ -32,7 +32,7 @@ const arc = simulate(snap.level, snap.cat.x, run.y, 0, snap.cat.height, dir, mf,
 **What it gates:** The "lands" clause when the optimistic envelope reaches nothing — describes the held-arc outcome (laser/void/landed) so the model knows the jump is fatal.
 **Verdict:** DEFENSIBLE. Uses live drone positions. This is the laser-survival check for the jump the model might actually pick.
 
-### 4. `descentPoints` gate — line 2330
+### 4. `descentPoints` gate — line 2338
 ```js
 const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
 const survives = (hold) => {
@@ -99,7 +99,7 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 
 ---
 
-### 10. `exitDirection` jump arc — line 2530 (real clock; added with EXIT_FACT, 2026-10-10)
+### 10. `exitDirection` jump arc — line 2538 (real clock; added with EXIT_FACT, 2026-10-10)
 ```js
 const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, { grounded: true });
 ```
@@ -109,7 +109,7 @@ const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, {
 
 ---
 
-### 11. `reachHolds` steering traces — line 2618 (real clock; added with REACH_FACT, 2026-10-10)
+### 11. `reachHolds` steering traces — line 2626 (real clock; added with REACH_FACT, 2026-10-10)
 ```js
 const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
   grounded: false, onFrame: ... });
@@ -127,31 +127,31 @@ const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold
 | 1 | `floorBelow` | 402 | real `mf` | DEFENSIBLE |
 | 2 | `jumpIsNoop` | 447 | real `mf` | DEFENSIBLE |
 | 3 | `jumpLandingNote` empty | 1048 | real `mf` | DEFENSIBLE |
-| 4 | `descentPoints` gate | 2330 | real `mfNow` | DEFENSIBLE |
+| 4 | `descentPoints` gate | 2338 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 804 | `0` | **LATENT-DEFECT** |
 | 6 | `jumpLandingNote` held scan | 1013 | real `mfNow` | **FIXED** |
 | 7 | `walkOffFatalNote` walk | 1122 | `0` | **LATENT-DEFECT** |
 | 8 | `walkOffFatalNote` jump | 1124 | `0` | **LATENT-DEFECT** |
-| 9 | `descentPoints` LANDDESC_HELD | 2376 | `0` | DEFENSIBLE-guarded |
-| 10 | `exitDirection` jump arc | 2530 | real `mf` (caller) | DEFENSIBLE |
-| 11 | `reachHolds` steering traces | 2618 | real `mf` (caller) | DEFENSIBLE |
-| 12 | `negHoldTargets` touch scan | 2660 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
-| 13 | `negHold` held-arc traces | 2683 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
-| 14 | `exitDirection` v1.1 step-off simulate | 2566 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
-| 15 | `ccFirstLaser` close scan | 1973 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
-| 16 | `ccJumpCollects` collector probe | 1985 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
-| 17 | `platformMap` AIR_EDGE steer-back | 1748 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
-| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 1888 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
-| 19 | `platformMap` DESC_UPSNAP step-off check | 1599 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
-| 20 | `descentPoints` DESC_UPSNAP step-off check | 2339 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
-| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1395 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
-| 22 | `landLate` LAND_LATE walk-off landing | 1344 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
-| 23 | `landLate` LAND_LATE held-jump landing | 1347 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
+| 9 | `descentPoints` LANDDESC_HELD | 2384 | `0` | DEFENSIBLE-guarded |
+| 10 | `exitDirection` jump arc | 2538 | real `mf` (caller) | DEFENSIBLE |
+| 11 | `reachHolds` steering traces | 2626 | real `mf` (caller) | DEFENSIBLE |
+| 12 | `negHoldTargets` touch scan | 2668 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
+| 13 | `negHold` held-arc traces | 2691 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
+| 14 | `exitDirection` v1.1 step-off simulate | 2574 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
+| 15 | `ccFirstLaser` close scan | 1981 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
+| 16 | `ccJumpCollects` collector probe | 1993 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
+| 17 | `platformMap` AIR_EDGE steer-back | 1756 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
+| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 1896 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
+| 19 | `platformMap` DESC_UPSNAP step-off check | 1607 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
+| 20 | `descentPoints` DESC_UPSNAP step-off check | 2347 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
+| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1403 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
+| 22 | `landLate` LAND_LATE walk-off landing | 1349 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
+| 23 | `landLate` LAND_LATE held-jump landing | 1354 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
 
 **Latent defects: 4** (sites 5, 7, 8, 16). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
 ### 15/16 — CORRIDOR_CLOCK sites (added 2026-10-10)
-`ccFirstLaser` (line 1973) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1985) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
+`ccFirstLaser` (line 1981) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1993) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
 
 ---
 
