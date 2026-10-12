@@ -61,9 +61,10 @@ PurpleMIST-Flash-1.0, served by its own `serve.py --no-truncate` on the `systemo
 | 9 | won | 45 | 19,098 | 2,647 |
 | 11 | won | 133 | 32,350 | 4,502 |
 | 7 | won | 30 | 13,640 | 1,910 |
+| 12 | won | 46 | 14,132 | 2,081 |
 | 6 | lost on level 10 (death cap) | 120 | 26,002 | not recorded |
 
-Three seeds won out of four. An earlier SEED 9 ladder also won, with 72 deaths, on a build that differed in one flag (`LAND_LATE=1`). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
+Four seeds won out of five. An earlier SEED 9 ladder also won, with 72 deaths, on a build that differed in one flag (`LAND_LATE=1`). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
 
 ## Submit a result
 
