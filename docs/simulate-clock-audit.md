@@ -24,7 +24,7 @@ const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, "jump
 **What it gates:** PRUNE_NOOP — removes a straight-up jump that lands back on the same floor and touches no gem.
 **Verdict:** DEFENSIBLE. Uses live drone positions. A noop jump is defined by geometry (lands on same floor), not by laser survival; the laser clock only affects whether the *apex* hits the ceiling, which is already checked by `jumpHitsCeiling` before this runs.
 
-### 3. `jumpLandingNote` empty branch — line 1035
+### 3. `jumpLandingNote` empty branch — line 1048
 ```js
 const mf = snap.drones && snap.drones.tl ? (snap.drones.tl.y - 1) / CFG.droneSpeed : 0;
 const arc = simulate(snap.level, snap.cat.x, run.y, 0, snap.cat.height, dir, mf, { grounded: true });
@@ -32,7 +32,7 @@ const arc = simulate(snap.level, snap.cat.x, run.y, 0, snap.cat.height, dir, mf,
 **What it gates:** The "lands" clause when the optimistic envelope reaches nothing — describes the held-arc outcome (laser/void/landed) so the model knows the jump is fatal.
 **Verdict:** DEFENSIBLE. Uses live drone positions. This is the laser-survival check for the jump the model might actually pick.
 
-### 4. `descentPoints` gate — line 2317
+### 4. `descentPoints` gate — line 2330
 ```js
 const mfNow = require("./route_clock.cjs").movingFramesOf(snap);
 const survives = (hold) => {
@@ -57,17 +57,17 @@ const r = simulate(snap.level, dp.x, snap.cat.y, 0, snap.cat.height, dir, 0, { g
 **Reasoning:** The simulation checks reachability *from the landing platform* at mf=0. At real movingFrames the side lasers have closed in; the cat may not be able to walk as far on the landing floor before the laser cuts it off, or the jump from that floor may hit the side laser. The `ONE-WAY` verdict (stranding other gems) could be wrong in either direction: a gem declared reachable at mf=0 may be cut off by the laser at real mf, or a gem declared stranded may actually be reachable if the laser hasn't closed that far yet.
 **What would settle it:** Measure the firing set of the `ONE-WAY` annotation at real mf vs mf=0 across a census of archived states. If the set of gems reported as lost changes, the defect is live.
 
-### 6. `jumpLandingNote` held-arc scan — line 1000 — **FIXED 2026-10-09**
+### 6. `jumpLandingNote` held-arc scan — line 1013 — **FIXED 2026-10-09**
 ```js
 const r = simulate(snap.level, x, run.y, 0, snap.cat.height, dir, 1, { grounded: true });
 ```
 **What it gates:** Selection of the imperative launch x (`namedX`) — picks the x in the good window whose *held* arc (steering held through the jump) actually lands on a platform that keeps the objective reachable.
 **Clock passed:** `1` (one frame in, nearly most favourable).
 **Verdict:** DEFENSIBLE.
-**Reasoning:** This scan verifies air-control reachability (the held-arc physics), not laser survival. The laser at mf=1 is barely different from mf=0; the side lasers move ~0.2px per frame. The purpose is to distinguish envelope reachability (optimistic, instantaneous steering) from held-arc reachability (what the cat actually does when the player holds a key). The actual laser survival for the chosen `namedX` is checked at real mf in the empty branch (line 1035). A constant of 1 is a pragmatic approximation for "the physics model without laser interference".
+**Reasoning:** This scan verifies air-control reachability (the held-arc physics), not laser survival. The laser at mf=1 is barely different from mf=0; the side lasers move ~0.2px per frame. The purpose is to distinguish envelope reachability (optimistic, instantaneous steering) from held-arc reachability (what the cat actually does when the player holds a key). The actual laser survival for the chosen `namedX` is checked at real mf in the empty branch (line 1048). A constant of 1 is a pragmatic approximation for "the physics model without laser interference".
 **What would settle it:** Census the `namedX` chosen at mf=1 vs real mf across archives. If they differ, the defect is live.
 
-### 7. `walkOffFatalNote` walk check — line 1109
+### 7. `walkOffFatalNote` walk check — line 1122
 ```js
 const r = simulate(snap.level, endX, run.y, 0, snap.cat.height, dir, 0, { grounded: true });
 ```
@@ -77,7 +77,7 @@ const r = simulate(snap.level, endX, run.y, 0, snap.cat.height, dir, 0, { ground
 **Reasoning:** At mf=0 the side lasers are at maximum width. At real movingFrames they have closed in. A walk that `lands` at mf=0 may hit the side laser at real mf, making the warning a **false negative** (the note is suppressed but the walk is actually fatal). This is the dangerous direction: the model is not warned about a lethal walk.
 **What would settle it:** Census archived states where the cat is near a floor edge (within `reachEnd`). Compare `simulate` outcome at mf=0 vs real mf. Count false negatives (mf=0 lands, real mf laser).
 
-### 8. `walkOffFatalNote` jump check — line 1111
+### 8. `walkOffFatalNote` jump check — line 1124
 ```js
 const jmp = simulate(snap.level, endX, run.y, 0, snap.cat.height, `jump_${dir}`, 0, { grounded: true });
 ```
@@ -99,7 +99,7 @@ const hr = simulate(snap.level, endX, curY, 0, snap.cat.height, side, 0, { groun
 
 ---
 
-### 10. `exitDirection` jump arc — line 2517 (real clock; added with EXIT_FACT, 2026-10-10)
+### 10. `exitDirection` jump arc — line 2530 (real clock; added with EXIT_FACT, 2026-10-10)
 ```js
 const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, { grounded: true });
 ```
@@ -109,7 +109,7 @@ const r = require("./arc.cjs").simulate(snap.level, catX, catY, 0, h, act, mf, {
 
 ---
 
-### 11. `reachHolds` steering traces — line 2605 (real clock; added with REACH_FACT, 2026-10-10)
+### 11. `reachHolds` steering traces — line 2618 (real clock; added with REACH_FACT, 2026-10-10)
 ```js
 const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold, mf, {
   grounded: false, onFrame: ... });
@@ -126,32 +126,32 @@ const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold
 |------|----------|------|-------|---------|
 | 1 | `floorBelow` | 402 | real `mf` | DEFENSIBLE |
 | 2 | `jumpIsNoop` | 447 | real `mf` | DEFENSIBLE |
-| 3 | `jumpLandingNote` empty | 1035 | real `mf` | DEFENSIBLE |
-| 4 | `descentPoints` gate | 2317 | real `mfNow` | DEFENSIBLE |
+| 3 | `jumpLandingNote` empty | 1048 | real `mf` | DEFENSIBLE |
+| 4 | `descentPoints` gate | 2330 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 804 | `0` | **LATENT-DEFECT** |
-| 6 | `jumpLandingNote` held scan | 1000 | real `mfNow` | **FIXED** |
-| 7 | `walkOffFatalNote` walk | 1109 | `0` | **LATENT-DEFECT** |
-| 8 | `walkOffFatalNote` jump | 1111 | `0` | **LATENT-DEFECT** |
-| 9 | `descentPoints` LANDDESC_HELD | 2363 | `0` | DEFENSIBLE-guarded |
-| 10 | `exitDirection` jump arc | 2517 | real `mf` (caller) | DEFENSIBLE |
-| 11 | `reachHolds` steering traces | 2605 | real `mf` (caller) | DEFENSIBLE |
-| 12 | `negHoldTargets` touch scan | 2647 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
-| 13 | `negHold` held-arc traces | 2670 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
-| 14 | `exitDirection` v1.1 step-off simulate | 2553 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
-| 15 | `ccFirstLaser` close scan | 1960 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
-| 16 | `ccJumpCollects` collector probe | 1972 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
-| 17 | `platformMap` AIR_EDGE steer-back | 1735 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
-| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 1875 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
-| 19 | `platformMap` DESC_UPSNAP step-off check | 1586 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
-| 20 | `descentPoints` DESC_UPSNAP step-off check | 2326 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
-| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1382 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
-| 22 | `landLate` LAND_LATE walk-off landing | 1331 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
-| 23 | `landLate` LAND_LATE held-jump landing | 1334 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
+| 6 | `jumpLandingNote` held scan | 1013 | real `mfNow` | **FIXED** |
+| 7 | `walkOffFatalNote` walk | 1122 | `0` | **LATENT-DEFECT** |
+| 8 | `walkOffFatalNote` jump | 1124 | `0` | **LATENT-DEFECT** |
+| 9 | `descentPoints` LANDDESC_HELD | 2376 | `0` | DEFENSIBLE-guarded |
+| 10 | `exitDirection` jump arc | 2530 | real `mf` (caller) | DEFENSIBLE |
+| 11 | `reachHolds` steering traces | 2618 | real `mf` (caller) | DEFENSIBLE |
+| 12 | `negHoldTargets` touch scan | 2660 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
+| 13 | `negHold` held-arc traces | 2683 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
+| 14 | `exitDirection` v1.1 step-off simulate | 2566 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
+| 15 | `ccFirstLaser` close scan | 1973 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
+| 16 | `ccJumpCollects` collector probe | 1985 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
+| 17 | `platformMap` AIR_EDGE steer-back | 1748 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
+| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 1888 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
+| 19 | `platformMap` DESC_UPSNAP step-off check | 1599 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
+| 20 | `descentPoints` DESC_UPSNAP step-off check | 2339 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
+| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1395 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
+| 22 | `landLate` LAND_LATE walk-off landing | 1344 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
+| 23 | `landLate` LAND_LATE held-jump landing | 1347 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
 
 **Latent defects: 4** (sites 5, 7, 8, 16). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
 ### 15/16 — CORRIDOR_CLOCK sites (added 2026-10-10)
-`ccFirstLaser` (line 1960) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1972) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
+`ccFirstLaser` (line 1973) scans `mf` from 0 to 400 to find the phase at which a jump first dies: every value it passes is a real clock value, so the scan is the point, not a hazard. `ccJumpCollects` (line 1985) probes whether a jump from a floor passes within 24px of a gem, at the caller's real `mf` threaded through `corridorClause` -> `ccCollector`. A jump the laser cuts at the current phase does not collect, so the clause goes silent - the honest answer to "can this route collect, now".
 
 ---
 
@@ -170,7 +170,7 @@ Synthetic state-space census across all playable levels (0..13), every platform 
 - **States where mf=0 descent dies (no ONE-WAY note at mf=0 either):** 18
 - **Verdict:** **DEFECT-THEORETICAL** — when conditioned on the descent actually being offered at real mf, the lost-gem set at mf=0 matches the lost-gem set at real mf in all 97 states. The defect is theoretical (exists in synthetic geometry only as a constant-clock assumption) with no evidence of a live divergence in the offered states.
 
-### Site 6 — `jumpLandingNote` held scan (line 1000; 970 pre-fix; 964 earlier) — FIXED 2026-10-09
+### Site 6 — `jumpLandingNote` held scan (line 1013; 970 pre-fix; 964 earlier) — FIXED 2026-10-09
 **Methodology corrected:** The audit doc called this DEFENSIBLE on a false premise (claiming the chosen namedX is re-checked at real mf in the empty branch; that branch only runs when there are no landings and simulates from `snap.cat.x`, not `namedX`). Census: for states where the held scan picks a namedX at mf=1, does the pick change at real mf (and would the real-mf arc from the picked namedX survive)? **Fixes applied:** (1) pick rule matches real code — chooses the good x NEAREST THE CAT whose held arc lands on a keeping floor (not first/leftmost); (2) survival check simulates the JUMP action (heldDir) from the picked x, not a walk; (3) added alive-at-start filter like sites 7/8.
 
 - **States examined (alive-at-start filter):** 194
@@ -183,7 +183,7 @@ Synthetic state-space census across all playable levels (0..13), every platform 
   - L2 catX=84 y=240 target=gem_a: mf=1 pick x=103 plat=floor(154..206@200) → mf=360 pick dies (held right)
 - **Verdict:** **DEFECT-LIVE** — all 194 states show divergence. The namedX pick does not shift (0 pick shifts), but in every case the mf=1 pick is killed by the side laser at real mf when the JUMP action is simulated. The audit's DEFENSIBLE verdict rested on a false premise (the empty branch does not re-check namedX).
 
-### Site 7 — `walkOffFatalNote` walk check (line 1109)
+### Site 7 — `walkOffFatalNote` walk check (line 1122)
 **Methodology corrected:** Adds alive-at-start filter — at high mf the side laser bounds close ~120px per side (see arc.cjs line 112 bounds test); a start position already inside the laser at that mf is a state the cat cannot be alive in and is excluded. Stops inflating the denominator: catX is enumerated but simulate is called at endX, so states are deduped by (level, floor, endX, side) and the distinct count is reported.
 
 - **States examined (deduped by level,floor,endX,side, alive-at-start):** 230
@@ -196,7 +196,7 @@ Synthetic state-space census across all playable levels (0..13), every platform 
   - L1 side=right endX=102 y=230 mf=380 → mf=0:landed mf=380:laser (false-safe)
 - **Verdict:** **DEFECT-LIVE** — the walk-off warning is suppressed in 74/230 distinct end-state geometries where the real side laser kills the cat. The model receives no warning for a lethal walk.
 
-### Site 8 — `walkOffFatalNote` jump escape clause (line 1111)
+### Site 8 — `walkOffFatalNote` jump escape clause (line 1124)
 **Methodology corrected:** The jump clause is only appended when the site-7 walk is NOT landed. Census conditions on that — counts jump divergence only where the walk is fatal.
 
 - **States examined (deduped, alive-at-start, walk fatal only):** 107
@@ -219,8 +219,8 @@ Synthetic state-space census across all playable levels (0..13), every platform 
 | Site | Function | Line | Clock | Verdict (pre-census) | Verdict (post-census) |
 |------|----------|------|-------|----------------------|-----------------------|
 | 5 | `buildObjectiveCall` descent cost | 804 | `0` | LATENT-DEFECT | **DEFECT-THEORETICAL** |
-| 6 | `jumpLandingNote` held scan | 1000 | real `mfNow` | DEFENSIBLE | **FIXED 2026-10-09** (census had it DEFECT-LIVE) |
-| 7 | `walkOffFatalNote` walk | 1109 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
+| 6 | `jumpLandingNote` held scan | 1013 | real `mfNow` | DEFENSIBLE | **FIXED 2026-10-09** (census had it DEFECT-LIVE) |
+| 7 | `walkOffFatalNote` walk | 1122 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
 | 8 | `walkOffFatalNote` jump escape | 1075 | `0` | LATENT-DEFECT | **DEFECT-LIVE** |
 
 Three of four constant-clock sites are **DEFECT-LIVE** (sites 6, 7, 8): divergent states exist in reachable synthetic geometry, and the divergence is exclusively in the dangerous direction (false-safe — the constant clock reports survival where the real laser kills). Site 5's verdict changed from LATENT-DEFECT to DEFECT-THEORETICAL because when conditioned on the descent actually being offered at real mf, the lost-gem set at mf=0 matches the lost-gem set at real mf in all 97 states. Site 6's verdict changed from DEFENSIBLE to DEFECT-LIVE because the audit's reasoning was based on a false premise (the empty branch does not re-check the held-scan pick at real mf).
