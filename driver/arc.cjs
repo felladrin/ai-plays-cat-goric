@@ -50,14 +50,18 @@ function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
   const onFrame = opts.onFrame || null;
   const shrink = LIVE.enabled();
   let plats = platformBoxes(level, movingFrames);
-  const goLeft = action.includes("left");
-  const goRight = action.includes("right");
+  let goLeft = action.includes("left");
+  let goRight = action.includes("right");
   const wantJump = action.includes("jump");
   let grounded = opts.grounded !== undefined ? opts.grounded : dy === 0;
   let jumped = false;
   let mf = movingFrames;
 
   for (let f = 1; f <= maxFrames; f++) {
+    // opts.steerAt(f): the horizontal input on frame f ("left" | "right" | "none"),
+    // for a held action that changes direction mid-air (collect_check.cjs). The
+    // jump itself still comes from `action`.
+    if (opts.steerAt) { const st = opts.steerAt(f); goLeft = st === "left"; goRight = st === "right"; }
     // Platforms keep shrinking as the lasers advance during the arc.
     if (shrink && f > 1) plats = platformBoxes(level, mf);
     // Moving horizontally un-grounds the cat; the collision pass may re-ground it.

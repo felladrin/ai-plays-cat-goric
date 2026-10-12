@@ -40,7 +40,7 @@ keys = sorted(set(a) & set(b))
 by_field, per, n = Counter(), Counter(), Counter()
 for k in keys:
     n[k[1]] += 1
-    diff = [f for f in ("move", "menu") if a[k][f] != b[k][f]]
+    diff = [f for f in ("move", "menu", "crit") if a[k].get(f) != b[k].get(f)]
     if objnorm(a[k]["obj"]) != objnorm(b[k]["obj"]):
         diff.append("obj")
     by_field.update(diff)

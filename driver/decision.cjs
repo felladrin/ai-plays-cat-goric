@@ -862,7 +862,20 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
       const X = alive[dl.indexOf(minD)];
       const nearest = alive.reduce((a, b) =>
         Math.hypot(a.x - snap.cat.x, a.y - snap.cat.y) <= Math.hypot(b.x - snap.cat.x, b.y - snap.cat.y) ? a : b);
-      if (canReach(X.x, X.y) && stranding(X) === "" && X.name !== nearest.name) {
+      // URGENCY_CLOCK (gated): the sentence says the gem is lost unless it is taken
+      // before the others; state it only when route_clock proves it (every order
+      // that does not start with it is dead, one that does is alive). L6's spawn:
+      // gem_c has the earliest deadline (535) but a-b-c collects it at +115 and
+      // every order starting with gem_c loses gem_a (docs/results.md, 2026-10-12);
+      // the sentence sent every life right for gem_c.
+      const clockOk = () => {
+        if (process.env.URGENCY_CLOCK !== "1") return true;
+        const fk = snap.onPlatform ? require("./reachability.cjs").platformKeyUnder(snap.level, snap.cat.x, snap.cat.y) : null;
+        if (!fk) return false;
+        const v = RC_URG.firstPickVerdicts(snap.level, levelGems, alive.map((g) => g.name), fk, snap.cat.x, (snap.drones.tl.y - 1) / 0.2);
+        return v.verdicts[X.name] === "alive" && alive.every((g) => g.name === X.name || v.verdicts[g.name] === "dead");
+      };
+      if (canReach(X.x, X.y) && stranding(X) === "" && X.name !== nearest.name && clockOk()) {
         const URGENCY =
           " DESTROYED FIRST: the closing lasers reach this gem before any other. If it is not collected before the others, it is gone and the level can never be won.";
         const e = presented.find((p) => p.name === X.name);
@@ -1208,6 +1221,13 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       const pj = portalJumpNote(snap, target);
       if (pj) lines.push(pj);
     }
+    if (process.env.PORTAL_WALK === "1" && objectiveName === "portal") {
+      const pw = portalWalk(snap, target);
+      const i = pw ? lines.findIndex((l) => l.startsWith("The cat's objective is")) : -1;
+      if (i >= 0) lines[i] += pw.offEnd
+        ? ` Walking ${pw.side} off this floor's ${pw.side} end (x ${Math.round(pw.edge)}) carries the cat into it.`
+        : ` Walking ${pw.side} along this floor reaches it: the portal begins ${Math.round(pw.dist)}px to the ${pw.side}, at x ${Math.round(pw.edge)}.`;
+    }
     const _jl = jumpLandingNote(snap, target);
     if (_jl) lines.push(_jl);
     if (process.env.CORRIDOR_CLOCK === "1") {
@@ -1289,7 +1309,198 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       criteria: legalActions(snap),
     },
   };
+  if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
+  if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
+  // LAND_LATE=2: every live gem, not only the objective (objective first). L6
+  // (all100_s9 ladder): lives took gem_b and chased gem_c while the route to gem_a
+  // closed behind them; the objective layer never named gem_a.
+  if (process.env.LAND_LATE === "2") {
+    const live = matchGemsToSpawn(levelGems, snap.gemPositions);
+    const order = live.filter((g) => g.name === objectiveName).concat(live.filter((g) => g.name !== objectiveName));
+    for (const g of order) landLate(snap, g, questions.move.criteria);
+  }
+  if (process.env.LAUNCH_LABEL) launchLabel(snap, questions.move.criteria, process.env.LAUNCH_LABEL);
+  if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
+    const pw = portalWalk(snap, target);
+    if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = pw.offEnd
+      ? `walk ${pw.side} (off this floor's ${pw.side} end at x ${Math.round(pw.edge)} the cat falls into the exit portal)`
+      : `walk ${pw.side} (walking along this floor reaches the exit portal at x ${Math.round(pw.edge)})`;
+  }
   return { state, questions, target };
+}
+
+// LAND_LATE (gated): label a move whose landing leaves the objective out of reach
+// in time, when it is still in reach from this floor. L13: after gem_a, the lives
+// on x 223..275 at y 197 (mf ~161, gem_c's deadline 250) walked or jumped left
+// onto x 158..210 at y 252, from which route_clock finds no route that collects
+// gem_c before its deadline, while `jump` lands on x 206..258 at y 136, from which
+// one exists. Probe (docs/results.md, 2026-10-12): the clause on both left moves
+// moves jump 0.212 -> 0.846; on one of them only, the mass moves to the other.
+// route_clock is optimistic (walk envelope, no interception), so "no longer" is a
+// proof; the arrival clock is the held move's own landing frame.
+function landLate(snap, target, criteria) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const RC = require("./route_clock.cjs");
+  const { simulate } = require("./arc.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const runAt = (x, y) => runs.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+  const here = runAt(snap.cat.x, snap.cat.y);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const gems = [[target.x, target.y]];
+  const gridX = (q, x) => {
+    const lo = Math.ceil(q.left / RC.X_STEP) * RC.X_STEP;
+    const hi = Math.floor(q.right / RC.X_STEP) * RC.X_STEP;
+    return Math.min(hi, Math.max(lo, Math.round(x / RC.X_STEP) * RC.X_STEP));
+  };
+  const inTime = (q, x, t) => RC.orderFeasibleN(snap.level, gems, [0], REACH.runKey(q), gridX(q, x), t, 0).collectTimes.length === 1;
+  if (!inTime(here, snap.cat.x, mf)) return;
+  // A move whose own arc collects the gem is not one that loses it (L11: jump_right
+  // from x 181 passes through gem_a on the way to the floor it lands on).
+  const G = 8;
+  const touches = (fx, fy) => fx < target.x + G && fx + 1 > target.x - G && fy - snap.cat.height < target.y + G && fy > target.y - G;
+  // ...including with any mid-air steering: the runner re-decides every few frames
+  // in the air (L11 full2_s9 decision 235: one labelled jump_right collected gem_b
+  // and gem_a before landing). Horizontal input does not change the vertical path,
+  // so the reach at frame f is x0 +/- catWalkSpeed * f; ignoring interception makes
+  // this an over-estimate, which only removes labels.
+  const envelopeCollects = (x0, jump) => {
+    let y = snap.cat.y, dy = jump ? -PHYS.catJumpSpeed : 0;
+    for (let f = 1; f <= 240 && y < 420; f++) {
+      dy += PHYS.catFallingAcceleration; y += dy;
+      const span = PHYS.catWalkSpeed * f;
+      if (x0 - span < target.x + G && x0 + span + 1 > target.x - G && y - snap.cat.height < target.y + G && y > target.y - G) return true;
+    }
+    return false;
+  };
+  const late = {};
+  for (const k of Object.keys(criteria)) {
+    let r, prefix;
+    if (k === "left" || k === "right") {
+      const end = k === "left" ? here.left : here.right;
+      const walkF = Math.max(0, Math.abs(end - snap.cat.x) / PHYS.catWalkSpeed);
+      let hit = false;
+      r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
+      if (hit || (Math.min(snap.cat.x, end) < target.x + G && Math.max(snap.cat.x, end) + 1 > target.x - G && touches(target.x, snap.cat.y))) continue;
+      if (envelopeCollects(end, false)) continue;
+      // The walk is also the way to a launch point: skip it when a jump the same
+      // way, from anywhere between the cat and the end, lands where the objective
+      // is still in reach in time. L4's opening (all100_s9 ladder): "walk right"
+      // was labelled for walking off the end at x 147, but the winning line walks
+      // right only to jump_right across to x 199..251 at y 93; the label moved the
+      // model to an early jump_right that missed.
+      let launch = false;
+      for (let x = snap.cat.x; !launch && (k === "left" ? x >= end : x <= end); x += k === "left" ? -PHYS.catWalkSpeed : PHYS.catWalkSpeed) {
+        const t = mf + Math.abs(x - snap.cat.x) / PHYS.catWalkSpeed;
+        const j = simulate(snap.level, x, snap.cat.y, 0, snap.cat.height, `jump_${k}`, t, { grounded: true });
+        if (j.outcome !== "landed") continue;
+        const jq = runAt(j.x, j.y);
+        if (jq && jq !== here && inTime(jq, j.x, j.mf)) launch = true;
+      }
+      if (launch) continue;
+      prefix = `walk ${k} (off this floor's ${k} end at x ${Math.round(end)} the cat lands on`;
+    } else if (k.startsWith("jump")) {
+      let hit = false;
+      r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
+      if (hit || envelopeCollects(snap.cat.x, true)) continue;
+      prefix = `${criteria[k]} (lands on`;
+    } else continue;
+    if (!r || r.outcome !== "landed") continue;
+    const q = runAt(r.x, r.y);
+    if (!q || q === here) continue;
+    if (inTime(q, r.x, r.mf)) continue;
+    late[k] = `${prefix} platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} can no longer be reached in time)`;
+  }
+  // A clause on every option says nothing about which one to take.
+  if (Object.keys(late).length === Object.keys(criteria).length) return;
+  // A label that already carries a clause (JUMP_NOCOLLECT) keeps it.
+  for (const [k, v] of Object.entries(late)) if (!criteria[k].includes("(")) criteria[k] = v;
+}
+
+// LAUNCH_LABEL (gated): label a jump that, held from the cat's x, falls to the
+// bottom laser while the same held jump from part of this floor lands on a higher
+// floor. L13 (jnc2w100_s9 ladder): after gem_a, on x 158..210 at y 252 with
+// objective ascent_right, lives took jump_right (0.87) from x 161; held, it falls to
+// the bottom laser, and it lands on x 223..275 at y 197 only from x 174..209.
+// =1: both facts; =2: the fall only; =3: the window and the cat's x.
+function launchLabel(snap, criteria, mode) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const here = runs.find((q) => Math.abs(q.y - snap.cat.y) < 0.5 && q.left - 1 <= snap.cat.x && snap.cat.x <= q.right + 1);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const bottom = PHYS.maximumLaserY - PHYS.droneSpeed * mf;
+  for (const k of ["jump_left", "jump_right"]) {
+    if (!(k in criteria) || criteria[k].includes("(")) continue;
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
+    // Only the bottom laser: the clock at death is later than mf, so the bound is compared loosely downward.
+    if (r.outcome !== "laser" || r.y < bottom - PHYS.droneSpeed * r.frames - 4) continue;
+    const xs = [];
+    let land = null;
+    for (let x = here.left; x <= here.right + 1e-9; x += PHYS.catWalkSpeed) {
+      const q = simulate(snap.level, x, here.y, 0, snap.cat.height, k, mf + Math.abs(x - snap.cat.x) / PHYS.catWalkSpeed, { grounded: true });
+      if (q.outcome !== "landed" || q.y >= here.y - 0.5) continue;
+      const qr = runs.find((rr) => Math.abs(rr.y - q.y) < 0.5 && rr.left - 1 <= q.x && q.x <= rr.right + 1);
+      if (!qr) continue;
+      if (!land) land = qr;
+      if (qr === land) xs.push(x);
+    }
+    if (!land || !xs.length) continue;
+    const lo = Math.round(Math.min(...xs)), hi = Math.round(Math.max(...xs)), cx = Math.round(snap.cat.x);
+    if (cx >= lo && cx <= hi) continue;
+    const plat = `platform x ${Math.round(land.left)}..${Math.round(land.right)} at y ${Math.round(land.y)}`;
+    criteria[k] += mode === "2" ? " (from here it falls to the bottom laser)"
+      : mode === "3" ? ` (lands on ${plat} only from x ${lo}..${hi}; the cat is at x ${cx})`
+      : ` (from x ${cx} it falls to the bottom laser; it lands on ${plat} only from x ${lo}..${hi})`;
+  }
+}
+
+// JUMP_NOCOLLECT (gated): label a jump that lands on a floor the objective cannot
+// be collected from, when stepping off this floor's end on the same side reaches
+// a floor it can be collected from, and this floor is not one. L12's fork: on
+// x 58..215 at y 165 heading for gem_a, every life flipped to jump_right (onto
+// x 193..245 at y 108) at x 170-190, while the right end drops onto x 220..272 at
+// y 231, a gem_a collector. Probe (docs/results.md, 2026-10-12): this label moves
+// x 190 from jump_right 0.502 / right 0.404 to 0.275 / 0.588; the same label
+// without the gem clause, and the collector named in the floor text (COLLECT_LAND)
+// or in the `right` label, did not (the long `right` label lowered `right`).
+function jumpNoCollect(snap, target, criteria) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const { collectableFrom } = require("./collect_check.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const runAt = (x, y) => runs.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+  const here = runAt(snap.cat.x, snap.cat.y);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const collects = (q) => collectableFrom(snap.level, q, target, mf);
+  const framesToFall = (dist) => { let dy = 0, y = 0, f = 0; while (y < dist) { dy += PHYS.catFallingAcceleration; y += dy; f += 1; } return f; };
+  // Lower floors in the step-off envelope of one end (the same envelope as the
+  // step-off text in platformMap's dropFrom).
+  const dropFloors = (endX) => runs.filter((q) => {
+    if (q.y <= here.y) return false;
+    const reach = framesToFall(q.y - here.y) * PHYS.catWalkSpeed;
+    return q.right >= endX - reach && q.left <= endX + reach;
+  });
+  for (const dir of ["left", "right"]) {
+    const k = `jump_${dir}`;
+    if (!(k in criteria)) continue;
+    // Cheap tests first: the held jump lands on a higher floor, and that end has lower floors.
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
+    if (r.outcome !== "landed" || r.y >= snap.cat.y - 0.5) continue;
+    const q = runAt(r.x, r.y);
+    const below = dropFloors(dir === "left" ? here.left : here.right);
+    if (!q || !below.length) continue;
+    if (collects(q) || !below.some(collects) || collects(here)) continue;
+    criteria[k] += ` (lands on platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} cannot be collected)`;
+  }
 }
 
 // Platforms span x +/- 20 around their stored coordinate (observed geometry).
@@ -1504,8 +1715,23 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
     }
     if (!reachable.length)
       return { survivable: false, carriesTarget: false, lands: [], text: `fall to the bottom laser (no platform reachable by steering)` };
+    // COLLECT_LAND (gated): name a landing the objective can be collected from,
+    // when this floor cannot collect it. L12: every life walked right along
+    // x 58..215 at y 165 toward gem_a and flipped to jump_right (0.47 vs right
+    // 0.43) into the y108/y125 pocket, while stepping off the right end lands on
+    // x 220..272 at y 231, a gem_a collector (docs/results.md, 2026-10-11).
+    // Opportunity framing, as COLLECT_WINDOW (loss framing lowered the target).
+    let collects = () => false;
+    if (process.env.COLLECT_LAND === "1" && snap.onPlatform && target && target.name) {
+      const REACHc = require("./reachability.cjs");
+      const cruns = REACHc.runsOf(snap.level);
+      const runAt = (x, y) => cruns.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+      const here = runAt(cx, curY);
+      if (here && !runJumpWindow(snap.level, cruns, here, target, snap.cat.height))
+        collects = (r) => { const q = runAt(r.p[0], r.p[1]); return !!q && !!runJumpWindow(snap.level, cruns, q, target, snap.cat.height); };
+    }
     const best = reachable
-      .map((r) => `steer to land on platform x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}`)
+      .map((r) => `steer to land on platform x ${Math.round(r.e.left)}..${Math.round(r.e.right)} at y ${r.p[1]}${collects(r) ? ` (${target.name} can be collected from there)` : ""}`)
       .join("; ");
     // Does ANY landing reachable from this end stand under the objective? Horizontal
     // containment in the run's x span, plus THE vertical-overlap rule (above) applied
@@ -1517,6 +1743,16 @@ function platformMap(snap, maxNear, objectiveBelow, target) {
   };
   const dropLeft = dropFrom(run.left, "left");
   const dropRight = dropFrom(run.right, "right");
+  // COLLECT_LAND names a side only when ONE end leads to a collector: with both
+  // ends marked it says nothing about direction (blast: 4,813 of L2's 6,696
+  // changed states were two-sided).
+  if (target && target.name) {
+    const mark = ` (${target.name} can be collected from there)`;
+    if (dropLeft.text.includes(mark) && dropRight.text.includes(mark)) {
+      dropLeft.text = dropLeft.text.split(mark).join("");
+      dropRight.text = dropRight.text.split(mark).join("");
+    }
+  }
   // GAP_DROP (gated, off by default): the gap note argues against the productive
   // move when the objective is reached by DROPPING off the warned edge, not by
   // crossing the gap (L4 @93: removing the note flips left 0.26 -> 0.92; the
@@ -1743,7 +1979,7 @@ function gemJumpWindow(snap, gem) {
   // from there touches gem_c: every one lands on floor x 181..233 at y 187 first
   // (docs/results.md, 2026-10-11). Keep only launch x whose held jump, at the real
   // clock, touches the gem's box; silent when none does.
-  if (w && process.env.GEMJUMP_VERIFY === "1") {
+  if (w && (process.env.GEMJUMP_VERIFY === "1" || process.env.GEMJUMP_VERIFY === "2")) {
     const { simulate } = require("./arc.cjs");
     const mfG = (snap.drones.tl.y - 1) / 0.2;
     const hit = (cx, cy) => cx < gem.x + GEM_HALF_HEIGHT && cx + 1 > gem.x - GEM_HALF_HEIGHT && cy - snap.cat.height < gem.y + GEM_HALF_HEIGHT && cy > gem.y - GEM_HALF_HEIGHT;
@@ -1757,6 +1993,21 @@ function gemJumpWindow(snap, gem) {
     // that already clear (blast 2026-10-11); the falsity is the window with no
     // working launch at all.
     if (!ok.length) return null;
+    // GEMJUMP_VERIFY=2: state the verified launch segment nearest the cat instead
+    // of the envelope's range. L12 (jnc2w100_s9 ladder): on x 220..272 at y 231 the
+    // note said "jump and steer left from x 220..269 ... The cat is at x 246,
+    // inside that range"; held jump_left collects gem_c only from x 220..225 and
+    // 269..271, and from 246 it lands on y 165 instead, which the model took (0.81).
+    if (process.env.GEMJUMP_VERIFY === "2") {
+      const segs = [];
+      for (const x of ok) {
+        const last = segs[segs.length - 1];
+        if (last && x - last.hi <= 1.75 + 1e-9) last.hi = x; else segs.push({ lo: x, hi: x });
+      }
+      const dist = (sg) => (snap.cat.x < sg.lo ? sg.lo - snap.cat.x : snap.cat.x > sg.hi ? snap.cat.x - sg.hi : 0);
+      const best = segs.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      return { dir: w.dir, lo: Math.round(best.lo), hi: Math.round(best.hi) };
+    }
   }
   return w;
 }
@@ -1933,6 +2184,37 @@ function portalJumpNote(snap, portal) {
     : cx > w.hi ? ` The cat is at x ${cx}, right of that range: walk left into it before jumping.`
     : ` The cat is at x ${cx}, inside that range.`;
   return `A jump from this floor reaches the exit portal: jump and steer ${w.dir} from x ${w.lo}..${w.hi}.${where}`;
+}
+
+// PORTAL_WALK (gated): portalJumpNote is silent when walking along this floor
+// reaches the portal, and nothing else says so. L12 (jnc2w100_s9 ladder): the one
+// life holding all three gems stood on x 58..215 at y 165 at x 212.5, the portal
+// box (x 164..196, y 134..166) 17px to the left along the floor, and jumped away.
+// Returns the side and the box edge the cat walks into, or null.
+function portalWalk(snap, portal) {
+  if (!snap.onPlatform || snap.gemsCollected < 3) return null;
+  const REACH = require("./reachability.cjs");
+  const run = REACH.runsOf(snap.level).find((r) => r.left <= snap.cat.x + 1 && snap.cat.x <= r.right && Math.abs(r.y - snap.cat.y) <= 14);
+  if (!run) return null;
+  const top = portal.y - PORTAL_HALF, bot = portal.y + PORTAL_HALF, L = portal.x - PORTAL_HALF, R = portal.x + PORTAL_HALF;
+  if (!(run.y - snap.cat.height < bot && run.y > top)) return null;
+  if (snap.cat.x + 1 > L && snap.cat.x < R) return null;
+  if (portal.x < snap.cat.x && run.left < R) return { side: "left", edge: R, dist: snap.cat.x - R };
+  if (portal.x > snap.cat.x && run.right + 1 > L) return { side: "right", edge: L, dist: L - snap.cat.x - 1 };
+  // Off the floor's end: L13 (jnc2w100_s9 ladder), floor x 206..258 at y 136 at
+  // mf 228 with all three gems, the model took jump_left (0.63; held, it dies at
+  // the top laser) over left; held left off the left end (x 206) enters the portal
+  // box 6 frames after the edge (docs/flash-l13-analysis.md, the same walk-off).
+  // Real clock: the walk to the end first, then the held step-off; the portal
+  // touch must come before any death.
+  const side = portal.x < snap.cat.x ? "left" : "right";
+  const end = side === "left" ? run.left : run.right;
+  const mf = (snap.drones.tl.y - 1) / 0.2 + Math.abs(snap.cat.x - end) / 1.75;
+  let hitF = null;
+  const r = require("./arc.cjs").simulate(snap.level, end, run.y, 0, snap.cat.height, side, mf, { grounded: true, maxFrames: 120,
+    onFrame: (fx, fy, f) => { if (hitF == null && fx < R && fx + 1 > L && fy - snap.cat.height < bot && fy > top) hitF = f; } });
+  if (hitF != null && (r.outcome !== "laser" || r.frames >= hitF)) return { side, edge: end, offEnd: true };
+  return null;
 }
 
 function gemJumpNote(snap, name, gem) {

@@ -58,7 +58,14 @@ function initialBudget(grounded, isJump, K) {
 // then; otherwise the normal cadence applies. The model still makes every choice;
 // this only moves WHEN it is asked after a walk-off.
 const WALKOFF_MAX = 20;
-function walkOffDropSafe(snap, floorY) {
+// strict (WALKOFF_CLEAR=2): the no-input fall itself must land on a lower floor.
+// On L6 in the jnc100_s9 ladder, =1 released the keys off the right end of the
+// y79 floor (x 180): only steering right in the air lands (on y220), the model at
+// a 0.49 / 0.51 airborne coin-flip steered left or not at all, and lives died at
+// the bottom laser where the old re-decide could have put the cat back on y79.
+// L12's y108 right end still qualifies (no input lands on y125); L2's left end
+// and L8's right end, which need steering, no longer do.
+function walkOffDropSafe(snap, floorY, strict = false) {
   const PHYS = require("./physics.cjs");
   const { simulate } = require("./arc.cjs");
   const h = snap.cat.height;
@@ -71,8 +78,37 @@ function walkOffDropSafe(snap, floorY) {
   const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, "none", mf, {
     grounded: false, maxFrames: 60, onFrame: (x, y, f) => { if (clearF == null && y - h > under) clearF = f; },
   });
-  if (r.outcome === "laser" || r.outcome === "void") return clearF != null && r.frames - clearF >= AIR_REDECIDE_FRAMES;
+  if (r.outcome === "laser" || r.outcome === "void") {
+    if (strict) return false;
+    return clearF != null && r.frames - clearF >= AIR_REDECIDE_FRAMES;
+  }
+  if (strict) return r.outcome === "landed" && r.y > floorY + 0.5;
   return true;
+}
+
+// WALKOFF_CLEAR=3: pick the plan the drop actually survives. =1 released into
+// drops only steering saves and lost L6 (the model did not steer); strict =2 kept
+// L6 and L12 but gave back L8, where the model does steer back after the release
+// (jnc2w100_s11 ladder). Returns "release" when no input lands lower (L12's y108),
+// "hold" (keep the walk key) when holding it lands lower (L6's y79 right end),
+// "release" when some steering after a no-input start lands lower (L8's y42 right
+// end, where the model steers back), or false.
+function walkOffPlan(snap, floorY, dir) {
+  const { simulate } = require("./arc.cjs");
+  const PHYS = require("./physics.cjs");
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const lands = (opts, act) => {
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, snap.cat.height, act, mf, { grounded: false, maxFrames: 120, ...opts });
+    return r.outcome === "landed" && r.y > floorY + 0.5;
+  };
+  // Release first when no input lands lower: on L12 the re-ask once clear of y108
+  // is what let the model steer past y125's edge down to y231 (holding right lands
+  // on y125, inside the pocket).
+  if (lands({}, "none")) return "release";
+  if (lands({}, dir)) return "hold";
+  for (let n = 1; n <= 40; n++)
+    for (const s2 of ["left", "right"]) if (lands({ steerAt: (f) => (f <= n ? "none" : s2) }, "none")) return "release";
+  return false;
 }
 
 async function stepBatch({ grounded, isJump, K, step, holdIsSafe, walkOff }) {
@@ -83,10 +119,12 @@ async function stepBatch({ grounded, isJump, K, step, holdIsSafe, walkOff }) {
     const res = await step(i);
     if (res && res.done) return i + 1;
     if (walkOff && grounded && !isJump && res && res.airborne === true && res.snap) {
-      if (walkOffDropSafe(res.snap, walkOff.floorY) === true) {
+      const plan = walkOff.mode === "3" ? walkOffPlan(res.snap, walkOff.floorY, walkOff.dir)
+        : walkOffDropSafe(res.snap, walkOff.floorY, walkOff.strict === true) === true ? "release" : false;
+      if (plan) {
         const PHYS = require("./physics.cjs");
         const under = walkOff.floorY + PHYS.platformHeight * (1 - PHYS.platformAnchorY);
-        await walkOff.release();
+        if (plan === "release") await walkOff.release();
         let k = 0;
         for (; k < WALKOFF_MAX; k++) {
           const r = await step(i + 1 + k);
@@ -112,4 +150,4 @@ async function stepBatch({ grounded, isJump, K, step, holdIsSafe, walkOff }) {
   return i;
 }
 
-module.exports = { AIR_REDECIDE_FRAMES, WALK_FRAMES, MAX_HELD_FRAMES, WALKOFF_MAX, initialBudget, stepBatch, walkOffDropSafe };
+module.exports = { AIR_REDECIDE_FRAMES, WALK_FRAMES, MAX_HELD_FRAMES, WALKOFF_MAX, initialBudget, stepBatch, walkOffDropSafe, walkOffPlan };
