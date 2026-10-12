@@ -3062,6 +3062,8 @@ const JUMP_NOUL_THRESHOLD = 0.5;
 // LLM-sampling idiom where 0.7 reads as "tame". Do NOT set T < 1 to "be
 // conservative" — that is the opposite of conservative for exploration.
 const SAMPLE_TEMPERATURE = 1.0; // sample the model's own distribution, no bias
+const CONF_ARGMAX_P = 0.6; // CONF_ARGMAX: top-option probability that keeps the argmax while exploring
+const CONF_ARGMAX_DEATHS = 3; // ...unless this many deaths are recorded at the key
 const TEMP_PER_PRIOR_DEATH = 0.5; // escalate exploration per prior death at this position
 const TEMP_MAX = 3.0;
 
@@ -3721,7 +3723,13 @@ async function decide(client, snap, levelGems, logger, deathHistory, visitCounts
       }
     }
   }
-  const move = exploring && !wptTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
+  // CONF_ARGMAX (gated): keep a confident argmax while exploring, unless it has
+  // already died here repeatedly. Death-history exploration marks every 10px key
+  // with a recent death, so on a long level most keys sample: the SEED 11
+  // replication ladder (all2_s11) lost L10 lives at the tower top (323,140) mf
+  // 111 where jump_left had 0.77 and the sampler drew left, off the tower.
+  const confTrust = process.env.CONF_ARGMAX === "1" && (moveProbs[argmaxMove] || 0) >= CONF_ARGMAX_P && priorDeaths < CONF_ARGMAX_DEATHS;
+  const move = exploring && !wptTrust && !confTrust ? sampleDistribution(sampleProbs, T, RNG) : argmaxMove;
   if (oscHistory) oscHistory.note(hereKey, move, exploring, snap.gemsCollected);
   if (memo) { memo.lastMove = move; memo.lastMoveMF = mfNow; }
   log(`move=${move}(argmax ${argmaxMove}) mode=${exploring ? "SAMPLE" : "ARGMAX"} T=${T.toFixed(2)} priorDeaths=${priorDeaths} revisits=${revisits}${excluded ? ` esc_excluded=[${excluded.join(",")}]` : ""} probs=${JSON.stringify(moveProbs)}`);
