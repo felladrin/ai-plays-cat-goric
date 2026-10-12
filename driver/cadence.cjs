@@ -58,7 +58,14 @@ function initialBudget(grounded, isJump, K) {
 // then; otherwise the normal cadence applies. The model still makes every choice;
 // this only moves WHEN it is asked after a walk-off.
 const WALKOFF_MAX = 20;
-function walkOffDropSafe(snap, floorY) {
+// strict (WALKOFF_CLEAR=2): the no-input fall itself must land on a lower floor.
+// On L6 in the jnc100_s9 ladder, =1 released the keys off the right end of the
+// y79 floor (x 180): only steering right in the air lands (on y220), the model at
+// a 0.49 / 0.51 airborne coin-flip steered left or not at all, and lives died at
+// the bottom laser where the old re-decide could have put the cat back on y79.
+// L12's y108 right end still qualifies (no input lands on y125); L2's left end
+// and L8's right end, which need steering, no longer do.
+function walkOffDropSafe(snap, floorY, strict = false) {
   const PHYS = require("./physics.cjs");
   const { simulate } = require("./arc.cjs");
   const h = snap.cat.height;
@@ -71,7 +78,11 @@ function walkOffDropSafe(snap, floorY) {
   const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, "none", mf, {
     grounded: false, maxFrames: 60, onFrame: (x, y, f) => { if (clearF == null && y - h > under) clearF = f; },
   });
-  if (r.outcome === "laser" || r.outcome === "void") return clearF != null && r.frames - clearF >= AIR_REDECIDE_FRAMES;
+  if (r.outcome === "laser" || r.outcome === "void") {
+    if (strict) return false;
+    return clearF != null && r.frames - clearF >= AIR_REDECIDE_FRAMES;
+  }
+  if (strict) return r.outcome === "landed" && r.y > floorY + 0.5;
   return true;
 }
 
@@ -83,7 +94,7 @@ async function stepBatch({ grounded, isJump, K, step, holdIsSafe, walkOff }) {
     const res = await step(i);
     if (res && res.done) return i + 1;
     if (walkOff && grounded && !isJump && res && res.airborne === true && res.snap) {
-      if (walkOffDropSafe(res.snap, walkOff.floorY) === true) {
+      if (walkOffDropSafe(res.snap, walkOff.floorY, walkOff.strict === true) === true) {
         const PHYS = require("./physics.cjs");
         const under = walkOff.floorY + PHYS.platformHeight * (1 - PHYS.platformAnchorY);
         await walkOff.release();

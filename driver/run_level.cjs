@@ -786,7 +786,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
       walkOff: (process.env.WALKOFF_CLEAR === "1" ||
         (process.env.WALKOFF_CLEAR === "2" && (/^descent/.test(d.objective) || (d.targetPos && d.targetPos.y > s.cat.y))))
         && s.onPlatform && !d.move.includes("jump") && d.move !== "none"
-        ? { floorY: s.cat.y, release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
+        ? { floorY: s.cat.y, strict: process.env.WALKOFF_CLEAR === "2", release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
         : undefined,
     });
 
