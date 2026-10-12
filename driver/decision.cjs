@@ -1326,7 +1326,7 @@ function jumpNoCollect(snap, target, criteria) {
     const k = `jump_${dir}`;
     if (!(k in criteria)) continue;
     // Cheap tests first: the held jump lands on a higher floor, and that end has lower floors.
-    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true }); // SIMULATE_CLOCK_AUDIT: real clock
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
     if (r.outcome !== "landed" || r.y >= snap.cat.y - 0.5) continue;
     const q = runAt(r.x, r.y);
     const below = dropFloors(dir === "left" ? here.left : here.right);
