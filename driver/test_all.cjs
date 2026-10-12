@@ -37,6 +37,7 @@ const SUITES = [
   "test_land_late.cjs",
   "test_urgency_clock.cjs",
   "test_portal_walk.cjs",
+  "test_launch_label.cjs",
 ];
 
 // Every driver/test_*.cjs on disk must be in SUITES or explicitly listed here.

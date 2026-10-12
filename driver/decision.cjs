@@ -1311,6 +1311,7 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
   };
   if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
   if (process.env.LAND_LATE === "1" && /^gem_/.test(objectiveName)) landLate(snap, target, questions.move.criteria);
+  if (process.env.LAUNCH_LABEL) launchLabel(snap, questions.move.criteria, process.env.LAUNCH_LABEL);
   if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
     const pw = portalWalk(snap, target);
     if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = pw.offEnd
@@ -1393,6 +1394,47 @@ function landLate(snap, target, criteria) {
   if (Object.keys(late).length === Object.keys(criteria).length) return;
   // A label that already carries a clause (JUMP_NOCOLLECT) keeps it.
   for (const [k, v] of Object.entries(late)) if (!criteria[k].includes("(")) criteria[k] = v;
+}
+
+// LAUNCH_LABEL (gated): label a jump that, held from the cat's x, falls to the
+// bottom laser while the same held jump from part of this floor lands on a higher
+// floor. L13 (jnc2w100_s9 ladder): after gem_a, on x 158..210 at y 252 with
+// objective ascent_right, lives took jump_right (0.87) from x 161; held, it falls to
+// the bottom laser, and it lands on x 223..275 at y 197 only from x 174..209.
+// =1: both facts; =2: the fall only; =3: the window and the cat's x.
+function launchLabel(snap, criteria, mode) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const here = runs.find((q) => Math.abs(q.y - snap.cat.y) < 0.5 && q.left - 1 <= snap.cat.x && snap.cat.x <= q.right + 1);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const bottom = PHYS.maximumLaserY - PHYS.droneSpeed * mf;
+  for (const k of ["jump_left", "jump_right"]) {
+    if (!(k in criteria) || criteria[k].includes("(")) continue;
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true });
+    // Only the bottom laser: the clock at death is later than mf, so the bound is compared loosely downward.
+    if (r.outcome !== "laser" || r.y < bottom - PHYS.droneSpeed * r.frames - 4) continue;
+    const xs = [];
+    let land = null;
+    for (let x = here.left; x <= here.right + 1e-9; x += PHYS.catWalkSpeed) {
+      const q = simulate(snap.level, x, here.y, 0, snap.cat.height, k, mf + Math.abs(x - snap.cat.x) / PHYS.catWalkSpeed, { grounded: true });
+      if (q.outcome !== "landed" || q.y >= here.y - 0.5) continue;
+      const qr = runs.find((rr) => Math.abs(rr.y - q.y) < 0.5 && rr.left - 1 <= q.x && q.x <= rr.right + 1);
+      if (!qr) continue;
+      if (!land) land = qr;
+      if (qr === land) xs.push(x);
+    }
+    if (!land || !xs.length) continue;
+    const lo = Math.round(Math.min(...xs)), hi = Math.round(Math.max(...xs)), cx = Math.round(snap.cat.x);
+    if (cx >= lo && cx <= hi) continue;
+    const plat = `platform x ${Math.round(land.left)}..${Math.round(land.right)} at y ${Math.round(land.y)}`;
+    criteria[k] += mode === "2" ? " (from here it falls to the bottom laser)"
+      : mode === "3" ? ` (lands on ${plat} only from x ${lo}..${hi}; the cat is at x ${cx})`
+      : ` (from x ${cx} it falls to the bottom laser; it lands on ${plat} only from x ${lo}..${hi})`;
+  }
 }
 
 // JUMP_NOCOLLECT (gated): label a jump that lands on a floor the objective cannot
