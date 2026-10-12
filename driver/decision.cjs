@@ -1289,7 +1289,51 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
       criteria: legalActions(snap),
     },
   };
+  if (process.env.JUMP_NOCOLLECT === "1" && /^gem_/.test(objectiveName)) jumpNoCollect(snap, target, questions.move.criteria);
   return { state, questions, target };
+}
+
+// JUMP_NOCOLLECT (gated): label a jump that lands on a floor the objective cannot
+// be collected from, when stepping off this floor's end on the same side reaches
+// a floor it can be collected from, and this floor is not one. L12's fork: on
+// x 58..215 at y 165 heading for gem_a, every life flipped to jump_right (onto
+// x 193..245 at y 108) at x 170-190, while the right end drops onto x 220..272 at
+// y 231, a gem_a collector. Probe (docs/results.md, 2026-10-12): this label moves
+// x 190 from jump_right 0.502 / right 0.404 to 0.275 / 0.588; the same label
+// without the gem clause, and the collector named in the floor text (COLLECT_LAND)
+// or in the `right` label, did not (the long `right` label lowered `right`).
+function jumpNoCollect(snap, target, criteria) {
+  if (!snap.onPlatform) return;
+  const REACH = require("./reachability.cjs");
+  const { simulate } = require("./arc.cjs");
+  const { collectableFrom } = require("./collect_check.cjs");
+  const PHYS = require("./physics.cjs");
+  const runs = REACH.runsOf(snap.level);
+  const runAt = (x, y) => runs.find((q) => Math.abs(q.y - y) < 0.5 && q.left - 1 <= x && x <= q.right + 1);
+  const here = runAt(snap.cat.x, snap.cat.y);
+  if (!here) return;
+  const mf = (snap.drones.tl.y - 1) / PHYS.droneSpeed;
+  const collects = (q) => collectableFrom(snap.level, q, target, mf);
+  const framesToFall = (dist) => { let dy = 0, y = 0, f = 0; while (y < dist) { dy += PHYS.catFallingAcceleration; y += dy; f += 1; } return f; };
+  // Lower floors in the step-off envelope of one end (the same envelope as the
+  // step-off text in platformMap's dropFrom).
+  const dropFloors = (endX) => runs.filter((q) => {
+    if (q.y <= here.y) return false;
+    const reach = framesToFall(q.y - here.y) * PHYS.catWalkSpeed;
+    return q.right >= endX - reach && q.left <= endX + reach;
+  });
+  for (const dir of ["left", "right"]) {
+    const k = `jump_${dir}`;
+    if (!(k in criteria)) continue;
+    // Cheap tests first: the held jump lands on a higher floor, and that end has lower floors.
+    const r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true }); // SIMULATE_CLOCK_AUDIT: real clock
+    if (r.outcome !== "landed" || r.y >= snap.cat.y - 0.5) continue;
+    const q = runAt(r.x, r.y);
+    const below = dropFloors(dir === "left" ? here.left : here.right);
+    if (!q || !below.length) continue;
+    if (collects(q) || !below.some(collects) || collects(here)) continue;
+    criteria[k] += ` (lands on platform x ${Math.round(q.left)}..${Math.round(q.right)} at y ${Math.round(q.y)}, from which ${target.name} cannot be collected)`;
+  }
 }
 
 // Platforms span x +/- 20 around their stored coordinate (observed geometry).
