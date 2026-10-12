@@ -3,7 +3,7 @@
 // until the cat is clear of the floor's side (or lands), instead of handing the
 // airborne decision back after the walk budget.
 const assert = require("assert");
-const { stepBatch, WALK_FRAMES, walkOffDropSafe } = require("./cadence.cjs");
+const { stepBatch, WALK_FRAMES, walkOffDropSafe, walkOffPlan } = require("./cadence.cjs");
 const mk = (lv, x, y, dy, mf, on) => ({ level: lv, onPlatform: on, cat: { x, y, dy, height: 18 }, drones: { tl: { y: 1 + 0.2 * mf } } });
 
 (async () => {
@@ -41,5 +41,18 @@ const mk = (lv, x, y, dy, mf, on) => ({ level: lv, onPlatform: on, cat: { x, y, 
   assert.strictEqual(walkOffDropSafe(mk(6, 180, 79.4, 0.4, 84, false), 79, false), true, "=1 releases it");
   assert.strictEqual(walkOffDropSafe(mk(6, 180, 79.4, 0.4, 84, false), 79, true), false, "=2 does not");
   assert.strictEqual(walkOffDropSafe(mk(2, 72.5, 64.4, 0.4, 81, false), 64, true), false);
+  // =3 plans: L12 release (no input lands on y125), L6 hold (holding right lands on y220),
+  // L8 and L2 release (only steering lands; the model steers there).
+  assert.strictEqual(walkOffPlan(mk(12, 246.75, 108.4, 0.4, 203, false), 108, "right"), "release");
+  assert.strictEqual(walkOffPlan(mk(6, 180, 79.4, 0.4, 84, false), 79, "right"), "hold");
+  assert.strictEqual(walkOffPlan(mk(8, 338, 42.4, 0.4, 78, false), 42, "right"), "release");
+  assert.strictEqual(walkOffPlan(mk(2, 72.5, 64.4, 0.4, 81, false), 64, "left"), "release");
+  // A "hold" plan steps on without releasing the keys.
+  released = 0;
+  const l6 = (i) => (i < 2 ? { done: false, airborne: false, snap: mk(6, 176.5 + 1.75 * i, 79, 0, 82, true) }
+    : { done: false, airborne: true, snap: mk(6, 180, 79 + 0.4 * (i - 1), 0.4, 84, false) });
+  await stepBatch({ grounded: true, isJump: false, K: WALK_FRAMES, step: async (i) => l6(i),
+    walkOff: { floorY: 79, mode: "3", dir: "right", release: async () => { released++; } } });
+  assert.strictEqual(released, 0, "hold keeps the walk key");
   console.log("test_walkoff_clear: Failed: 0");
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -784,9 +784,9 @@ const VIDEO_DIR = CFG.outPath("video");
       // ladder) walks toward an ascent launch at a floor's end overshot the edge,
       // and =1 committed the cat to drops the airborne steer-back used to undo.
       walkOff: (process.env.WALKOFF_CLEAR === "1" ||
-        (process.env.WALKOFF_CLEAR === "2" && (/^descent/.test(d.objective) || (d.targetPos && d.targetPos.y > s.cat.y))))
+        ((process.env.WALKOFF_CLEAR === "2" || process.env.WALKOFF_CLEAR === "3") && (/^descent/.test(d.objective) || (d.targetPos && d.targetPos.y > s.cat.y))))
         && s.onPlatform && !d.move.includes("jump") && d.move !== "none"
-        ? { floorY: s.cat.y, strict: process.env.WALKOFF_CLEAR === "2", release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
+        ? { floorY: s.cat.y, strict: process.env.WALKOFF_CLEAR === "2", mode: process.env.WALKOFF_CLEAR, dir: d.move, release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
         : undefined,
     });
   }
