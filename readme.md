@@ -41,6 +41,16 @@ node run_level.cjs <endpoint> <level>     # one level, e.g. node run_level.cjs q
 node run_full.cjs <endpoint>              # the whole ladder
 ```
 
+## Beat the game
+
+PurpleMIST-Flash-1.0 clears all 14 levels (L0-L13) in one ladder, with the model making every decision. With the harness running and a PurpleMIST server on port 8000:
+
+```sh
+SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=PurpleMIST-Flash-1.0 driver/beat_the_game.sh 9
+```
+
+It takes about an hour on one GPU and ends with `won (reached level 14): true`. The script turns on the prompt facts and runner fixes that got it there (all off by default) and allows up to 100 lives per level. It won at seeds 9, 11 and 7, and lost at seed 6 (on L10). What each fact does, and every run behind these numbers, is in [docs/results.md](docs/results.md).
+
 The driver speaks two model interfaces, and every endpoint is one of them:
 
 - **Chat completions with a first-token distribution.** An OpenAI-compatible `/v1/chat/completions` that returns `top_logprobs` for the first generated token when asked with `logprobs: true, top_logprobs: n`, and continues a trailing assistant message, so the answer is read as the next token.
