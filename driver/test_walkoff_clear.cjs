@@ -35,5 +35,11 @@ const mk = (lv, x, y, dy, mf, on) => ({ level: lv, onPlatform: on, cat: { x, y, 
   // Safety: the drops the gate exists for are allowed (they clear the side before any death).
   assert.strictEqual(walkOffDropSafe(mk(2, 72.5, 64.4, 0.4, 81, false), 64), true);
   assert.strictEqual(walkOffDropSafe(mk(8, 338, 42.4, 0.4, 78, false), 42), true);
+  // Strict (=2): only a no-input fall that lands lower. L12's y108 right end qualifies;
+  // L6's y79 right end (x 180) and L2's left end (both need steering) do not.
+  assert.strictEqual(walkOffDropSafe(mk(12, 246.75, 108.4, 0.4, 203, false), 108, true), true);
+  assert.strictEqual(walkOffDropSafe(mk(6, 180, 79.4, 0.4, 84, false), 79, false), true, "=1 releases it");
+  assert.strictEqual(walkOffDropSafe(mk(6, 180, 79.4, 0.4, 84, false), 79, true), false, "=2 does not");
+  assert.strictEqual(walkOffDropSafe(mk(2, 72.5, 64.4, 0.4, 81, false), 64, true), false);
   console.log("test_walkoff_clear: Failed: 0");
 })().catch((e) => { console.error(e); process.exit(1); });

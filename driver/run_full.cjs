@@ -776,7 +776,7 @@ const VIDEO_DIR = CFG.outPath("video");
       // WALKOFF_CLEAR (gated): release the keys at the edge after a walk-off and
       // re-ask once the cat is clear of the floor's side (cadence.cjs).
       walkOff: process.env.WALKOFF_CLEAR === "1" && s.onPlatform && !d.move.includes("jump") && d.move !== "none"
-        ? { floorY: s.cat.y, release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
+        ? { floorY: s.cat.y, strict: process.env.WALKOFF_CLEAR === "2", release: () => setAction("none"), log: (k) => console.log(`      walk-off: keys released ${k} frames until clear`) }
         : undefined,
     });
   }
