@@ -862,7 +862,20 @@ function buildObjectiveCall(snap, levelGems, deathHistory) {
       const X = alive[dl.indexOf(minD)];
       const nearest = alive.reduce((a, b) =>
         Math.hypot(a.x - snap.cat.x, a.y - snap.cat.y) <= Math.hypot(b.x - snap.cat.x, b.y - snap.cat.y) ? a : b);
-      if (canReach(X.x, X.y) && stranding(X) === "" && X.name !== nearest.name) {
+      // URGENCY_CLOCK (gated): the sentence says the gem is lost unless it is taken
+      // before the others; state it only when route_clock proves it (every order
+      // that does not start with it is dead, one that does is alive). L6's spawn:
+      // gem_c has the earliest deadline (535) but a-b-c collects it at +115 and
+      // every order starting with gem_c loses gem_a (docs/results.md, 2026-10-12);
+      // the sentence sent every life right for gem_c.
+      const clockOk = () => {
+        if (process.env.URGENCY_CLOCK !== "1") return true;
+        const fk = snap.onPlatform ? require("./reachability.cjs").platformKeyUnder(snap.level, snap.cat.x, snap.cat.y) : null;
+        if (!fk) return false;
+        const v = RC_URG.firstPickVerdicts(snap.level, levelGems, alive.map((g) => g.name), fk, snap.cat.x, (snap.drones.tl.y - 1) / 0.2);
+        return v.verdicts[X.name] === "alive" && alive.every((g) => g.name === X.name || v.verdicts[g.name] === "dead");
+      };
+      if (canReach(X.x, X.y) && stranding(X) === "" && X.name !== nearest.name && clockOk()) {
         const URGENCY =
           " DESTROYED FIRST: the closing lasers reach this gem before any other. If it is not collected before the others, it is gone and the level can never be won.";
         const e = presented.find((p) => p.name === X.name);
