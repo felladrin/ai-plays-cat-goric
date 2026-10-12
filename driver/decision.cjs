@@ -1339,6 +1339,20 @@ function landLate(snap, target, criteria) {
   // from x 181 passes through gem_a on the way to the floor it lands on).
   const G = 8;
   const touches = (fx, fy) => fx < target.x + G && fx + 1 > target.x - G && fy - snap.cat.height < target.y + G && fy > target.y - G;
+  // ...including with any mid-air steering: the runner re-decides every few frames
+  // in the air (L11 full2_s9 decision 235: one labelled jump_right collected gem_b
+  // and gem_a before landing). Horizontal input does not change the vertical path,
+  // so the reach at frame f is x0 +/- catWalkSpeed * f; ignoring interception makes
+  // this an over-estimate, which only removes labels.
+  const envelopeCollects = (x0, jump) => {
+    let y = snap.cat.y, dy = jump ? -PHYS.catJumpSpeed : 0;
+    for (let f = 1; f <= 240 && y < 420; f++) {
+      dy += PHYS.catFallingAcceleration; y += dy;
+      const span = PHYS.catWalkSpeed * f;
+      if (x0 - span < target.x + G && x0 + span + 1 > target.x - G && y - snap.cat.height < target.y + G && y > target.y - G) return true;
+    }
+    return false;
+  };
   const late = {};
   for (const k of Object.keys(criteria)) {
     let r, prefix;
@@ -1348,11 +1362,12 @@ function landLate(snap, target, criteria) {
       let hit = false;
       r = simulate(snap.level, end, snap.cat.y, 0, snap.cat.height, k, mf + walkF, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
       if (hit || (Math.min(snap.cat.x, end) < target.x + G && Math.max(snap.cat.x, end) + 1 > target.x - G && touches(target.x, snap.cat.y))) continue;
+      if (envelopeCollects(end, false)) continue;
       prefix = `walk ${k} (off this floor's ${k} end at x ${Math.round(end)} the cat lands on`;
     } else if (k.startsWith("jump")) {
       let hit = false;
       r = simulate(snap.level, snap.cat.x, snap.cat.y, 0, snap.cat.height, k, mf, { grounded: true, onFrame: (fx, fy) => { if (touches(fx, fy)) hit = true; } });
-      if (hit) continue;
+      if (hit || envelopeCollects(snap.cat.x, true)) continue;
       prefix = `${criteria[k]} (lands on`;
     } else continue;
     if (!r || r.outcome !== "landed") continue;
