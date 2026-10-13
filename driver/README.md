@@ -89,8 +89,8 @@ LLAMA_BASE_URL=http://127.0.0.1:1234 node run_full.cjs qwen_local
 # or the best current endpoint (key from the repo-root env file, no flag needed)
 node run_level.cjs clef 10
 
-# benchmark a model: the whole ladder once per seed, one comparable result
-SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=my-model npm run benchmark -- systemone 9 11
+# benchmark a model: the whole ladder on the leaderboard seeds 1-5, one comparable result
+SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=my-model npm run benchmark -- systemone
 ```
 
 A level run takes 40 to 1500 seconds and writes `out/run_level_<n>_clef.json` plus a
@@ -181,7 +181,8 @@ export LLAMA_BASE_URL=http://127.0.0.1:1235
 | `run_level.cjs` | play one level |
 | `run_full.cjs` | play the ladder, with an L0 regression gate |
 | `preset.cjs` | the default flag set both runners apply first |
-| `benchmark.cjs` | run the ladder per seed and write `benchmark.json` |
+| `benchmark.cjs` | run the ladder per seed and write `benchmark.json` (score and version) |
+| `leaderboard.cjs` | render the leaderboard tables from `docs/leaderboard/` |
 | `config.cjs` | environment resolution |
 | `physics.cjs`, `level_data.cjs` | constants mirrored from the game |
 | `cadence.cjs` | how many frames one decision runs for, and when the model re-decides |

@@ -18,7 +18,8 @@ node run_level.cjs clef 10             # one level, isolated run
 node run_full.cjs clef                 # the whole ladder, with the default preset (the winning flag set)
 PRESET=none node run_full.cjs clef     # the bare baseline: every gate off
 ./beat_the_game.sh 9                   # the winning ladder on PurpleMIST-Flash-1.0 (systemone)
-npm run benchmark -- systemone 9 11    # the ladder per seed, one comparable result (out/benchmark/)
+npm run benchmark -- systemone         # the ladder on the leaderboard seeds 1-5, one comparable result (out/benchmark/)
+npm run leaderboard                    # re-render the leaderboard tables from docs/leaderboard/
 npm test                               # the driver's default suite
 ```
 
@@ -38,7 +39,8 @@ npm test                               # the driver's default suite
 | `driver/jev.cjs` | The endpoint clients. The endpoint table is at the top of `run_level.cjs` and in `driver/README.md` |
 | `driver/route_clock.cjs`, `driver/arc.cjs`, `driver/collect_check.cjs` | Clock, trajectory and collectability analysis behind the prompt facts. Every claim a lever adds is proven by one of them |
 | `driver/preset.cjs` | The default flag set both runners apply before anything reads the environment (`test_preset.cjs` pins it to the winning build; keep it in step with `docs/results.md`) |
-| `driver/benchmark.cjs` | Runs `run_full.cjs` once per seed against one endpoint and writes `benchmark.json` plus a one-line summary |
+| `driver/benchmark.cjs` | Runs `run_full.cjs` once per seed against one endpoint and writes `benchmark.json`: the leaderboard score, the benchmark version (`VERSION`) and why a run does not count for it |
+| `driver/leaderboard.cjs`, `docs/leaderboard/` | One `benchmark.json` per model and version, rendered into the tables in `readme.md` and `docs/benchmark.md` (`test_leaderboard.cjs` fails when they are stale) |
 | `driver/beat_the_game.sh` | `run_full.cjs systemone` with the winning preset at SEED 9 |
 | `driver/test/` | The offline suite (`npm test`), its fixtures, and the two browser checks CI runs (`verify_layout.cjs`, `overlay_test.cjs`) |
 | `driver/research/` | Offline census, blast and probe scripts (`render_states.cjs`, `blast_shrink_geom.py`, `probe_move_wording.cjs`, `cmp_gates.cjs`, `cmp_obj.cjs`), the isolated-level sweeps, inspection tools and the screencast pipeline. Run the offline ones before any live run. Status per script: `driver/research/README.md` |
@@ -69,6 +71,16 @@ What the probes keep showing: a true fact on the option the model should **avoid
 - Record every result in `docs/results.md` in the same change, with the command, the endpoint name, and the numbers.
 - Never read or print the gitignored env file at the repo root. The driver reads it in-process.
 - Never add an AI session link or "Generated with" line to a commit or a pull request.
+
+## Benchmark versions
+
+The leaderboard ([docs/benchmark.md](docs/benchmark.md)) compares models only within one version. A change to what the model reads in a default run (a lever joins or leaves the preset, a preset fact changes its words, a cap changes) starts a new version, in the same pull request:
+
+1. Bump `VERSION` in `driver/benchmark.cjs` and its pin in `test_preset.cjs`, and add a row to the versions table in `docs/benchmark.md`.
+2. Run `npm run benchmark -- <endpoint>` for every model on the leaderboard, one GPU job at a time, from a clean checkout of the merged commit (a dirty `driver/` does not count).
+3. Copy each `benchmark.json` to `docs/leaderboard/<version>/<model>.json`, run `npm run leaderboard`, and record the runs in `docs/results.md`.
+
+Older versions stay in `docs/leaderboard/`; never edit a committed result.
 
 ## Verification
 

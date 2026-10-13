@@ -47,7 +47,7 @@ cd driver
 SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=my-model npm run benchmark -- systemone
 ```
 
-Seeds default to 6, 7, 9 and 11; name others after the endpoint (`npm run benchmark -- systemone 9`). Each ladder takes about an hour on one GPU. The result lands in `out/benchmark/<endpoint>-<time>/benchmark.json`: for each seed, won or not, the last level reached, deaths per level, total deaths, steps, classifier calls, wall time, the model id and the stamped build. The last line printed is the one-line summary.
+Seeds default to 1, 2, 3, 4 and 5, the leaderboard seeds; name others after the endpoint (`npm run benchmark -- systemone 9`) for your own tests. Each ladder takes about an hour on one GPU. The result lands in `out/benchmark/<endpoint>-<time>/benchmark.json`: for each seed, won or not, the last level reached, deaths per level, total deaths, steps, classifier calls, wall time, the model id and the stamped build. The last lines printed are the one-line summary and whether the result counts for the current version of the [leaderboard](benchmark.md).
 
 A chat model works the same way through the `chat` endpoint, if its server returns `top_logprobs` for the first generated token and continues a trailing assistant message (llama.cpp's `llama-server` does):
 

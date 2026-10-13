@@ -7,9 +7,12 @@ const fs = require("fs");
 const path = require("path");
 const { PRESETS, LADDER_CAPS, DEFAULT_PRESET, applyPreset } = require("../preset.cjs");
 const { BUILD_FLAGS } = require("../run_stats.cjs");
-const { summarizeRun, summaryLine } = require("../benchmark.cjs");
+const { summarizeRun, summaryLine, VERSION } = require("../benchmark.cjs");
 
-// The winning run's stamped build (docs/results.md, the all2/all3 ladders).
+// The winning run's stamped build (docs/results.md, the all2/all3 ladders), and the
+// benchmark version that plays it. A change to WINNING or the caps below changes
+// what the model reads: bump VERSION in benchmark.cjs in the same change.
+assert.strictEqual(VERSION, "v1");
 const WINNING = {
   PRUNE_FATAL: "1", MOVE_INSTR: "2", JUMP_FACTS: "1", HOLD_FIX: "1", COL_FACTS: "1", GEM_FACTS: "1",
   STICKY_OBJECTIVE: "1", EXIT_FACT: "1", RISE_LABEL: "1", NEG_HOLD: "1", PORTAL_DESC: "1", GAP_DROP: "1",
