@@ -1320,6 +1320,10 @@ function buildMoveCall(snap, levelGems, objectiveName, deathHistory) {
     for (const g of order) landLate(snap, g, questions.move.criteria);
   }
   if (process.env.LAUNCH_LABEL) launchLabel(snap, questions.move.criteria, process.env.LAUNCH_LABEL);
+  // NOOP_LABEL: label a straight jump that lands back on the same spot and touches no gem,
+  // instead of pruning it (PRUNE_NOOP): removing the option reorders the others (docs/results.md).
+  if (process.env.NOOP_LABEL === "1" && questions.move.criteria.jump === "jump straight up" && jumpIsNoop(snap))
+    questions.move.criteria.jump = "jump straight up: lands back where it started, collects nothing, and uses time";
   if (process.env.PORTAL_WALK === "2" && objectiveName === "portal") {
     const pw = portalWalk(snap, target);
     if (pw && pw.side in questions.move.criteria) questions.move.criteria[pw.side] = pw.offEnd

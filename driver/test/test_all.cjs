@@ -40,6 +40,7 @@ const SUITES = [
   "test_launch_label.cjs",
   "test_conf_argmax.cjs",
   "test_hold_live.cjs",
+  "test_noop_label.cjs",
   "test_preset.cjs",
 ];
 

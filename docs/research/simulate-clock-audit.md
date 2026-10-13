@@ -127,31 +127,31 @@ const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, hold
 | 1 | `floorBelow` | 402 | real `mf` | DEFENSIBLE |
 | 2 | `jumpIsNoop` | 447 | real `mf` | DEFENSIBLE |
 | 3 | `jumpLandingNote` empty | 1048 | real `mf` | DEFENSIBLE |
-| 4 | `descentPoints` gate | 2488 | real `mfNow` | DEFENSIBLE |
+| 4 | `descentPoints` gate | 2492 | real `mfNow` | DEFENSIBLE |
 | 5 | `buildObjectiveCall` descent cost | 804 | `0` | **LATENT-DEFECT** |
 | 6 | `jumpLandingNote` held scan | 1013 | real `mfNow` | **FIXED** |
 | 7 | `walkOffFatalNote` walk | 1122 | `0` | **LATENT-DEFECT** |
 | 8 | `walkOffFatalNote` jump | 1124 | `0` | **LATENT-DEFECT** |
-| 9 | `descentPoints` LANDDESC_HELD | 2534 | `0` | DEFENSIBLE-guarded |
-| 10 | `exitDirection` jump arc | 2688 | real `mf` (caller) | DEFENSIBLE |
-| 11 | `reachHolds` steering traces | 2776 | real `mf` (caller) | DEFENSIBLE |
-| 12 | `negHoldTargets` touch scan | 2818 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
-| 13 | `negHold` held-arc traces | 2841 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
-| 14 | `exitDirection` v1.1 step-off simulate | 2724 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
-| 15 | `ccFirstLaser` close scan | 2100 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
-| 16 | `ccJumpCollects` collector probe | 2112 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
-| 17 | `platformMap` AIR_EDGE steer-back | 1860 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
-| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 2000 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
-| 19 | `platformMap` DESC_UPSNAP step-off check | 1711 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
-| 20 | `descentPoints` DESC_UPSNAP step-off check | 2497 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
-| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1496 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
-| 22 | `landLate` LAND_LATE walk-off landing | 1385 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
-| 23 | `landLate` LAND_LATE held-jump landing | 1406 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
-| 24 | `portalWalk` PORTAL_WALK step-off into the portal | 2225 | real `mf` + walk frames to the floor end | DEFENSIBLE (added with PORTAL_WALK, 2026-10-12: does holding the walk off this end touch the portal box before any death, at the clock the cat reaches the end) |
-| 25 | `launchLabel` LAUNCH_LABEL held jump from the cat | 1440 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAUNCH_LABEL, 2026-10-12: does the held jump from here fall to the bottom laser) |
-| 26 | `launchLabel` LAUNCH_LABEL launch scan | 1446 | real `mf` + walk frames to each launch x | DEFENSIBLE (added with LAUNCH_LABEL, 2026-10-12: from which x on this floor the held jump lands higher) |
-| 27 | `landLate` LAND_LATE launch scan along the walk | 1397 | real `mf` + walk frames to each launch x | DEFENSIBLE (added 2026-10-12: does a jump the same way from a point on the walk land where the objective is still in reach) |
-| 28 | `jumpNoCollect` JUMP_NOCOLLECT=2 other jumps | 1508 | real `mf` (from the snapshot) | DEFENSIBLE (added 2026-10-12: where the other held jumps from here land, to see whether one reaches a collector) |
+| 9 | `descentPoints` LANDDESC_HELD | 2538 | `0` | DEFENSIBLE-guarded |
+| 10 | `exitDirection` jump arc | 2692 | real `mf` (caller) | DEFENSIBLE |
+| 11 | `reachHolds` steering traces | 2780 | real `mf` (caller) | DEFENSIBLE |
+| 12 | `negHoldTargets` touch scan | 2822 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10: the collect-platform scan must trace at the real laser clock; a geometry-only cache would over-claim platforms the lasers have closed) |
+| 13 | `negHold` held-arc traces | 2845 | real `mf` (caller) | DEFENSIBLE (added with NEG_HOLD, 2026-10-10) |
+| 14 | `exitDirection` v1.1 step-off simulate | 2728 | real `mf` (caller) | DEFENSIBLE (added with EXIT_FACT v1.1, 2026-10-10: the up-snap check must trace the step-off at the real laser clock) |
+| 15 | `ccFirstLaser` close scan | 2104 | real `mf` (0..400 scan) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the site scans the clock by design; every phase it tests IS a real clock value) |
+| 16 | `ccJumpCollects` collector probe | 2116 | real `mf` (caller) | DEFENSIBLE (added with CORRIDOR_CLOCK, 2026-10-10: the collector probe traces the jump at the real laser clock - a jump the laser cuts does not collect, and the clause stays silent) |
+| 17 | `platformMap` AIR_EDGE steer-back | 1864 | real `mfE` (from the snapshot) | DEFENSIBLE (added with AIR_EDGE, 2026-10-11: asks whether steering back from just past a floor's end lands on that floor at the current clock) |
+| 18 | `gemJumpWindow` GEMJUMP_VERIFY held-jump check | 2004 | real `mfG` (from the snapshot) | DEFENSIBLE (added with GEMJUMP_VERIFY, 2026-10-11: keeps only launch x whose held jump touches the gem at the current clock) |
+| 19 | `platformMap` DESC_UPSNAP step-off check | 1715 | real `mfU` (from the snapshot) | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: does stepping off this end at the current clock snap the cat up onto a higher platform) |
+| 20 | `descentPoints` DESC_UPSNAP step-off check | 2501 | real `mfNow` | DEFENSIBLE (added with DESC_UPSNAP, 2026-10-11: drops an end whose held step-off snaps the cat up at the current clock) |
+| 21 | `jumpNoCollect` JUMP_NOCOLLECT held-jump landing | 1500 | real `mf` (from the snapshot) | DEFENSIBLE (added with JUMP_NOCOLLECT, 2026-10-12: where the held jump lands now; the "cannot be collected" claim itself is proven in collect_check.cjs at clock 0 and at live widths) |
+| 22 | `landLate` LAND_LATE walk-off landing | 1389 | real `mf + walkF` (the clock when the walk reaches the floor end) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where walking off this end lands, and at which clock, for the route_clock check) |
+| 23 | `landLate` LAND_LATE held-jump landing | 1410 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAND_LATE, 2026-10-12: where the held jump lands and at which clock) |
+| 24 | `portalWalk` PORTAL_WALK step-off into the portal | 2229 | real `mf` + walk frames to the floor end | DEFENSIBLE (added with PORTAL_WALK, 2026-10-12: does holding the walk off this end touch the portal box before any death, at the clock the cat reaches the end) |
+| 25 | `launchLabel` LAUNCH_LABEL held jump from the cat | 1444 | real `mf` (from the snapshot) | DEFENSIBLE (added with LAUNCH_LABEL, 2026-10-12: does the held jump from here fall to the bottom laser) |
+| 26 | `launchLabel` LAUNCH_LABEL launch scan | 1450 | real `mf` + walk frames to each launch x | DEFENSIBLE (added with LAUNCH_LABEL, 2026-10-12: from which x on this floor the held jump lands higher) |
+| 27 | `landLate` LAND_LATE launch scan along the walk | 1401 | real `mf` + walk frames to each launch x | DEFENSIBLE (added 2026-10-12: does a jump the same way from a point on the walk land where the objective is still in reach) |
+| 28 | `jumpNoCollect` JUMP_NOCOLLECT=2 other jumps | 1512 | real `mf` (from the snapshot) | DEFENSIBLE (added 2026-10-12: where the other held jumps from here land, to see whether one reaches a collector) |
 
 **Latent defects: 4** (sites 5, 7, 8, 16). Site 6 is constant-clock but now judged DEFECT-LIVE (census-confirmed); site 9 is DEFENSIBLE-guarded.
 
