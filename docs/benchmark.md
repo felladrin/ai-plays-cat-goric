@@ -67,8 +67,10 @@ PurpleMIST-Flash-1.0, served by its own `serve.py --no-truncate` on the `systemo
 | 16 | won | 27 | 14,683 | 2,197 |
 | 17 | won | 73 | 27,263 | 4,064 |
 | 18 | won | 60 | 26,446 | 3,652 |
+| 19 | won | 66 | 27,475 | 3,866 |
+| 20 | won | 29 | 14,422 | 2,102 |
 
-Nine seeds won out of nine. SEED 17 and 18 come from `npm run benchmark -- systemone 17 18` on main 29f7c5c, the default exactly as shipped. Before `HOLD_LIVE` joined the preset, the same model won 8 of 9 seeds (6 to 16 without 8 and 10; SEED 6 lost on level 10), with 380 deaths on the six seeds both builds won against 300 now; that table is in [results.md](results.md). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
+Eleven seeds won out of eleven. SEED 17 to 20 come from `npm run benchmark` on main 29f7c5c, the default exactly as shipped. Before `HOLD_LIVE` joined the preset, the same model won 8 of 9 seeds (6 to 16 without 8 and 10; SEED 6 lost on level 10), with 380 deaths on the six seeds both builds won against 300 now; that table is in [results.md](results.md). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
 
 ## Submit a result
 
