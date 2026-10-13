@@ -1,6 +1,6 @@
 #!/bin/sh
 # The whole ladder (L0-L13) with the prompt levers that beat the game: PurpleMIST-Flash-1.0
-# cleared every level in one run with this set at SEED 6, 7, 9, 11, 12, 15 and 16 (docs/results.md,
+# cleared every level in one run with this set at SEED 6, 7, 9, 11, 12 and 15-18 (docs/results.md,
 # "GAME BEATEN" and the entries after it). Start the harness first (npm run harness).
 #
 #   SYSTEMONE_BASE_URL=http://127.0.0.1:8000 SYSTEMONE_MODEL=PurpleMIST-Flash-1.0 driver/beat_the_game.sh [seed]

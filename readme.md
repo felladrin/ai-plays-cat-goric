@@ -8,7 +8,7 @@ The model never writes code and never makes a plan. At each decision it reads a 
 
 ## Results
 
-PurpleMIST-Flash-1.0 clears all 14 levels in one run. With the default settings it has done it at every seed tried (6, 7, 9, 11, 12, 15 and 16), with up to 100 lives per level. What got it there was telling the model true facts at the moments it went wrong, never a pathfinder or a scripted move. Every run, and the ideas that did not work, are in [docs/results.md](docs/results.md) and [docs/dead-ends.md](docs/dead-ends.md).
+PurpleMIST-Flash-1.0 clears all 14 levels in one run. With the default settings it has done it at every seed tried (6, 7, 9, 11, 12 and 15 to 18), with up to 100 lives per level. What got it there was telling the model true facts at the moments it went wrong, never a pathfinder or a scripted move. Every run, and the ideas that did not work, are in [docs/results.md](docs/results.md) and [docs/dead-ends.md](docs/dead-ends.md).
 
 ## Try it
 
