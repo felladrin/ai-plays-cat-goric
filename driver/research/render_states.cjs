@@ -13,7 +13,10 @@ const DRV = path.resolve(process.argv[2]);
 const ROOT = path.resolve(process.argv[3]);
 const D = require(path.join(DRV, "decision.cjs"));
 const LIVE = fs.existsSync(path.join(DRV, "platform_live.cjs")) ? require(path.join(DRV, "platform_live.cjs")) : null;
-const GEMS = require(path.join(DRV, "experiments", "gem_table.cjs"))();
+// research/ was experiments/ before the layout change; a reference checkout may predate it.
+const GEM_TABLE = ["research", "experiments"].map((d) => path.join(DRV, d, "gem_table.cjs")).find((p) => fs.existsSync(p));
+if (!GEM_TABLE) throw new Error(`no research/gem_table.cjs or experiments/gem_table.cjs under ${DRV}`);
+const GEMS = require(GEM_TABLE)();
 const files = [];
 (function w(d) { for (const f of fs.readdirSync(d).sort()) { const p = path.join(d, f);
   if (fs.statSync(p).isDirectory()) w(p); else if (/^(run_level_\d+_|run_full_).*\.json$/.test(f)) files.push(p); } })(ROOT);
