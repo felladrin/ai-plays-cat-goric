@@ -8,7 +8,8 @@
     "test": "node test/test_all.cjs",
     "level": "node run_level.cjs",
     "full": "node run_full.cjs",
-    "benchmark": "node benchmark.cjs"
+    "benchmark": "node benchmark.cjs",
+    "leaderboard": "node leaderboard.cjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0"
