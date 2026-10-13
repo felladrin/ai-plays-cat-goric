@@ -54,21 +54,19 @@ Keep in mind that the preset was tuned on PurpleMIST-Flash-1.0's answers: each p
 
 ## Results
 
-PurpleMIST-Flash-1.0, served by its own `serve.py --no-truncate` on the `systemone` endpoint, with the winning preset and up to 100 deaths per level. Every number is from a run file recorded in [results.md](results.md#game-beaten-purplemist-flash-10-clears-l0-l13-in-one-ladder-2026-10-12).
+PurpleMIST-Flash-1.0, served by its own `serve.py --no-truncate` on the `systemone` endpoint, with the winning preset (including `HOLD_LIVE=1`) and up to 100 deaths per level. Every number is from a run file recorded in [results.md](results.md).
 
 | Seed | Outcome | Total deaths | Steps | Classifier calls |
 | --- | --- | --- | --- | --- |
-| 9 | won | 45 | 19,098 | 2,647 |
-| 11 | won | 133 | 32,350 | 4,502 |
-| 7 | won | 30 | 13,640 | 1,910 |
-| 12 | won | 46 | 14,132 | 2,081 |
-| 13 | won | 33 | 13,836 | 2,100 |
-| 14 | won | 50 | 19,880 | 2,755 |
-| 15 | won | 50 | 18,150 | 2,749 |
-| 16 | won | 76 | 29,052 | 4,042 |
-| 6 | lost on level 10 (death cap) | 120 | 26,002 | not recorded |
+| 6 | won | 60 | 25,736 | 3,779 |
+| 7 | won | 88 | 37,500 | 5,194 |
+| 9 | won | 56 | 24,839 | 3,477 |
+| 11 | won | 68 | 25,541 | 3,746 |
+| 12 | won | 7 | 5,748 | 874 |
+| 15 | won | 54 | 23,246 | 3,399 |
+| 16 | won | 27 | 14,683 | 2,197 |
 
-Eight seeds won out of nine. An earlier SEED 9 ladder also won, with 72 deaths, on a build that differed in one flag (`LAND_LATE=1`). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
+Seven seeds won out of seven. Before `HOLD_LIVE` joined the preset, the same model won 8 of 9 seeds (6 to 16 without 8 and 10; SEED 6 lost on level 10), with 380 deaths on the six seeds both builds won against 300 now; that table is in [results.md](results.md). Every other model in the project has been measured only on isolated levels so far, so none of them is in this table yet.
 
 ## Submit a result
 
