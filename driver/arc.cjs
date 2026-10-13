@@ -25,11 +25,13 @@ const PLAT_TOP_OFF = CFG.platformHeight * CFG.platformAnchorY;
 const PLAT_BOT_OFF = CFG.platformHeight * (1 - CFG.platformAnchorY);
 
 // `mf` defaults to the decision's laser clock; widths are live only under
-// SHRINK_GEOM=1 (platform_live.cjs), full width otherwise.
-function platformBoxes(level, mf) {
+// SHRINK_GEOM=1 (platform_live.cjs), full width otherwise. `live` asks for live
+// widths at `mf` whatever SHRINK_GEOM says (HOLD_LIVE, heldActionIsSafe).
+function platformBoxes(level, mf, live = false) {
+  const sc = (x, y) => (live ? LIVE.scaleAt(x, y, mf) : LIVE.scale(x, y, mf));
   return LEVELS.platforms(level, mf).map(([x, y]) => ({
     x, y,
-    left: x - PLAT_HALF_W * LIVE.scale(x, y, mf), right: x + PLAT_HALF_W * LIVE.scale(x, y, mf),
+    left: x - PLAT_HALF_W * sc(x, y), right: x + PLAT_HALF_W * sc(x, y),
     top: y - PLAT_TOP_OFF, bot: y + PLAT_BOT_OFF,
   }));
 }
@@ -48,8 +50,9 @@ function overlaps(cx, cy, catHeight, p) {
 function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
   const maxFrames = opts.maxFrames || 240;
   const onFrame = opts.onFrame || null;
-  const shrink = LIVE.enabled();
-  let plats = platformBoxes(level, movingFrames);
+  const live = !!opts.live;
+  const shrink = LIVE.enabled() || live;
+  let plats = platformBoxes(level, movingFrames, live);
   let goLeft = action.includes("left");
   let goRight = action.includes("right");
   const wantJump = action.includes("jump");
@@ -63,7 +66,7 @@ function simulate(level, x, y, dy, catHeight, action, movingFrames, opts = {}) {
     // jump itself still comes from `action`.
     if (opts.steerAt) { const st = opts.steerAt(f); goLeft = st === "left"; goRight = st === "right"; }
     // Platforms keep shrinking as the lasers advance during the arc.
-    if (shrink && f > 1) plats = platformBoxes(level, mf);
+    if (shrink && f > 1) plats = platformBoxes(level, mf, live);
     // Moving horizontally un-grounds the cat; the collision pass may re-ground it.
     if (goLeft || goRight) grounded = false;
     if (dy >= 0) {
@@ -155,8 +158,8 @@ function platformKeyAt(level, x, y, tol = 14) {
 // same frame, and then be reported as "landed" at a position with nothing under
 // it. That is a real failure, not a near miss, so the question has to be asked
 // of the returned point.
-function standingOn(level, x, y, catHeight, mf) {
-  const plats = platformBoxes(level, mf);
+function standingOn(level, x, y, catHeight, mf, live = false) {
+  const plats = platformBoxes(level, mf, live);
   for (let i = 0; i < plats.length; i++) {
     if (overlaps(x, y, catHeight, plats[i])) return true;
   }
@@ -191,8 +194,13 @@ function heldActionIsSafe(snap, action) {
   // HOLD_FIX: in the air a jump action is only its steering. Simulated whole, a
   // held jump_left jumps again on landing, so no jump in flight was ever safe.
   const air = process.env.HOLD_FIX === "1" ? action.replace(/^jump_?/, "") || "none" : action;
-  const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, air, mf, { grounded: false });
-  if (r.outcome === "landed") return standingOn(snap.level, r.x, r.y, h, LIVE.enabled() ? r.mf : undefined);
+  // HOLD_LIVE: judge the hold with live platform widths, without SHRINK_GEOM's prompt
+  // changes. With full widths a held L10 jump_right from @150 "lands" on the edge of
+  // a tower floor that has already shrunk, so the hold runs to the death and the
+  // model is never asked (docs/results.md, HOLD_LIVE).
+  const live = process.env.HOLD_LIVE === "1";
+  const r = simulate(snap.level, snap.cat.x, snap.cat.y, snap.cat.dy || 0, h, air, mf, { grounded: false, live });
+  if (r.outcome === "landed") return standingOn(snap.level, r.x, r.y, h, LIVE.enabled() || live ? r.mf : undefined, live);
   if (r.outcome === "laser" || r.outcome === "void") return false;
   return null;
 }
