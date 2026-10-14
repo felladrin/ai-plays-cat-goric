@@ -42,6 +42,7 @@ const SUITES = [
   "test_hold_live.cjs",
   "test_preset.cjs",
   "test_leaderboard.cjs",
+  "test_single_option.cjs",
 ];
 
 // Every driver/test/test_*.cjs on disk must be in SUITES or explicitly listed here.
