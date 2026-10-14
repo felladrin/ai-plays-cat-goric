@@ -8,6 +8,7 @@ else is rejected with 422 rather than guessed at.
 
     python systemone_adapter.py --backend phocinae --model-dir /models/Phocinae-Largha-150M-v1
     python systemone_adapter.py --backend autojev  --model-dir /models/Darwin-27B-ZTC
+    python systemone_adapter.py --backend intern   --model-dir /models/Intern-Decision-4B
 
 See docs/bring-your-own-model.md.
 """
@@ -54,7 +55,36 @@ def autojev_backend(model_dir, device):
     return decide
 
 
-BACKENDS = {"phocinae": phocinae_backend, "autojev": autojev_backend}
+def intern_backend(model_dir, device):
+    # Intern-Decision ships its own Jev-style engine (inference.py next to the weights);
+    # it takes the same state and questions and returns probabilities per option name.
+    import functools
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    sys.path.insert(0, model_dir)
+    import inference
+
+    # The engine always loads the checkpoint's image processor, whose video part needs
+    # torchvision, but it uses the processor only for requests with images. The driver
+    # sends text only, so a folder with just the tokenizer files stands in for it.
+    # DecisionEngine does not forward processor_path to its HFBackend, hence the partial.
+    text_only = tempfile.mkdtemp()
+    for f in Path(model_dir).glob("*"):
+        if f.name.startswith(("tokenizer", "special_tokens", "added_tokens", "vocab", "merges", "chat_template")):
+            shutil.copy(f, text_only)
+    inference.HFBackend = functools.partial(inference.HFBackend, processor_path=text_only)
+    engine = inference.DecisionEngine(checkpoint=model_dir, device=device)
+
+    def decide(state, questions):
+        answers = engine.predict({"state": state, "questions": questions})["answers"]
+        return {i: [answers[i]["probabilities"][n] for n in questions[i]["criteria"]] for i in questions}
+
+    return decide
+
+
+BACKENDS = {"phocinae": phocinae_backend, "autojev": autojev_backend, "intern": intern_backend}
 
 
 def validate(body):
