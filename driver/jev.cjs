@@ -56,8 +56,23 @@ function makeClient(opts) {
     return { status: res.status, text, json };
   }
 
-  // Returns the `answers` object on success. Throws JevHardError on failure.
+  // A choice question with one option has a forced answer: it is answered here and
+  // not sent, as the objective call already skips a 1-candidate menu. Some servers
+  // reject it (decider-2b: "a map of 2..255 options"); the outcome is the same either way.
   async function classify(state, questions) {
+    const forced = {};
+    const asked = {};
+    for (const [q, spec] of Object.entries(questions)) {
+      const names = (spec.type || "choice") === "choice" && spec.criteria ? Object.keys(spec.criteria) : [];
+      if (names.length === 1) forced[q] = { choice: names[0], probabilities: { [names[0]]: 1 } };
+      else asked[q] = spec;
+    }
+    if (!Object.keys(asked).length) return forced;
+    return Object.assign(await classifyRemote(state, asked), forced);
+  }
+
+  // Returns the `answers` object on success. Throws JevHardError on failure.
+  async function classifyRemote(state, questions) {
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
