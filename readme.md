@@ -19,9 +19,10 @@ Each model plays the whole game (14 levels in one run, up to 100 lives per level
 | 2 | h2o-lightning-4b | 0% | no | 6.2 / 14 | n/a |
 | 3 | Intern-Decision-0.8B | 0% | no | 4.0 / 14 | n/a |
 | 3 | decider-2b | 0% | no | 4.0 / 14 | n/a |
-| 5 | Phocinae-Largha-150M-v1 | 0% | no | 2.2 / 14 | n/a |
-| 6 | Intern-Decision-2B | 0% | no | 1.6 / 14 | n/a |
-| 7 | PurpleMIST-Mini-1.0 | 0% | no | 1.0 / 14 | n/a |
+| 5 | bosun-v3.1-1.7b | 0% | no | 3.2 / 14 | n/a |
+| 6 | Phocinae-Largha-150M-v1 | 0% | no | 2.2 / 14 | n/a |
+| 7 | Intern-Decision-2B | 0% | no | 1.6 / 14 | n/a |
+| 8 | PurpleMIST-Mini-1.0 | 0% | no | 1.0 / 14 | n/a |
 <!-- leaderboard:end -->
 
 A new version comes with each change to what the model reads, and every model plays it again. [docs/benchmark.md](docs/benchmark.md) has each seed's outcome, the versions, and how to add your model.
