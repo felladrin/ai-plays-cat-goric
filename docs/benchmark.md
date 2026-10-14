@@ -13,6 +13,7 @@ The ranking with its columns is in the [readme](../readme.md#leaderboard). Here 
 | --- | --- | --- | --- | --- | --- |
 | PurpleMIST-Flash-1.0 | won, 22 deaths | won, 25 deaths | won, 15 deaths | won, 27 deaths | won, 9 deaths |
 | h2o-lightning-4b | lost on L2, 100 deaths | lost on L2, 100 deaths | lost on L9, 216 deaths | lost on L9, 130 deaths | lost on L9, 206 deaths |
+| Phocinae-Largha-150M-v1 | lost on L4, 204 deaths | lost on L1, 100 deaths | lost on L1, 100 deaths | lost on L1, 100 deaths | lost on L4, 274 deaths |
 | PurpleMIST-Mini-1.0 | lost on L1, 101 deaths | lost on L1, 100 deaths | lost on L1, 106 deaths | lost on L1, 101 deaths | lost on L1, 101 deaths |
 <!-- leaderboard:end -->
 
