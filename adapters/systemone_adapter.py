@@ -9,6 +9,7 @@ else is rejected with 422 rather than guessed at.
     python systemone_adapter.py --backend phocinae --model-dir /models/Phocinae-Largha-150M-v1
     python systemone_adapter.py --backend autojev  --model-dir /models/Darwin-27B-ZTC
     python systemone_adapter.py --backend intern   --model-dir /models/Intern-Decision-4B
+    python systemone_adapter.py --backend bosun    --model-dir /models/bosun-v3.1-1.7b
 
 See docs/bring-your-own-model.md.
 """
@@ -84,7 +85,28 @@ def intern_backend(model_dir, device):
     return decide
 
 
-BACKENDS = {"phocinae": phocinae_backend, "autojev": autojev_backend, "intern": intern_backend}
+def bosun_backend(model_dir, device):
+    # Hanno-Labs Bosun: a PEFT adapter on a pinned Qwen base, loaded by the repo's own
+    # BosunForDecision (trust_remote_code). The base comes from the Hugging Face cache, so
+    # serve with HF_HOME pointing at a cache that holds it and HF_HUB_OFFLINE=1.
+    from transformers import AutoModelForCausalLM
+
+    model = AutoModelForCausalLM.from_pretrained(model_dir, trust_remote_code=True, dtype="auto",
+                                                 local_files_only=True).to(device).eval()
+
+    def decide(state, questions):
+        out = {}
+        for qid, q in questions.items():
+            names = list(q["criteria"])
+            cands = [{"id": n, "label": n, "description": q["criteria"][n] or ""} for n in names]
+            out[qid] = model.predict(state=state, instructions=q.get("instructions") or "", candidates=cands,
+                                     decision_type="choice", row_id=qid)["probabilities"]
+        return out
+
+    return decide
+
+
+BACKENDS = {"phocinae": phocinae_backend, "autojev": autojev_backend, "intern": intern_backend, "bosun": bosun_backend}
 
 
 def validate(body):
