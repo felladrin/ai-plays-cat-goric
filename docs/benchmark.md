@@ -45,6 +45,8 @@ When a new prompt fact joins the preset, or an existing one changes what it says
 | --- | --- | --- |
 | v1 | `29f7c5c` (2026-10-13) | The first version: the winning preset with `HOLD_LIVE=1` |
 
+The ladder's own L0 check, which stops a run when level 0 costs a life, guards prompt work on PurpleMIST-Flash-1.0. `npm run benchmark` turns it off (`REGRESSION_GATE=0`), so an L0 death is scored like any other. No v1 result so far had an L0 death, so the change leaves them as they were.
+
 `npm run benchmark` writes `"version": "v1"` into `benchmark.json` only when the run counts for the current version: the seeds 1 to 5, the default preset with no flag added or turned off, the default caps, and no uncommitted change in `driver/`. Otherwise `version` is null and `offVersion` lists why.
 
 ## Run it
