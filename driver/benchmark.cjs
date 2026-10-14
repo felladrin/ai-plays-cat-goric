@@ -134,7 +134,8 @@ function main(argv) {
     const t0 = Date.now();
     const res = spawnSync(process.execPath, [path.join(__dirname, "run_full.cjs"), endpoint], {
       cwd: __dirname,
-      env: Object.assign({}, process.env, { SEED: seed, OUT_DIR: dir }),
+      // REGRESSION_GATE=0: an L0 death is part of the score here, not a reason to stop (run_full.cjs).
+      env: Object.assign({}, process.env, { SEED: seed, OUT_DIR: dir, REGRESSION_GATE: "0" }),
       stdio: ["ignore", fd, fd],
     });
     fs.closeSync(fd);

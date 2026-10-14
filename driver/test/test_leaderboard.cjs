@@ -2,6 +2,7 @@
 // The leaderboard columns, the version check a benchmark must pass to be listed,
 // the ranking, and that the committed tables match docs/leaderboard/.
 const assert = require("assert");
+const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { score, offVersion, DEFAULT_SEEDS } = require("../benchmark.cjs");
@@ -40,6 +41,13 @@ assert.deepStrictEqual(order, ["a", "b", "c", "d"], "more wins, then more levels
 
 assert.strictEqual(splice(`x\n${START}\nold\n${END}\ny`, "new", "f"), `x\n${START}\nnew\n${END}\ny`);
 assert.throws(() => splice("no markers", "t", "f.md"), /f.md: the leaderboard markers are missing/);
+
+// The ladder's L0 gate (stop when L0 costs a life) guards prompt work on the reference
+// model; in a benchmark an L0 death is a result. The benchmark turns it off, and the
+// gate honours that.
+const src = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
+assert.ok(/env: Object\.assign\(\{\}, process\.env, \{[^}]*REGRESSION_GATE: "0"/.test(src("benchmark.cjs")), "benchmark.cjs runs the ladder with REGRESSION_GATE=0");
+assert.ok(/if \(process\.env\.REGRESSION_GATE !== "0" && lastLevel === 0/.test(src("run_full.cjs")), "run_full.cjs skips the L0 gate when REGRESSION_GATE=0");
 
 const check = spawnSync(process.execPath, [path.join(__dirname, "..", "leaderboard.cjs"), "--check"], { encoding: "utf8" });
 assert.strictEqual(check.status, 0, `the committed leaderboard is stale or invalid: ${check.stderr}`);

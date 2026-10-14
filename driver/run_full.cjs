@@ -553,7 +553,9 @@ const VIDEO_DIR = CFG.outPath("video");
       // It has held 0 deaths / 5 decisions for many runs; any policy/state change
       // that costs L0 its clean clear is a bad trade and must NOT proceed to the
       // ladder. Block and report rather than measuring a ladder on a broken base.
-      if (lastLevel === 0 && levels[0] && levels[0].deaths > 0) {
+      // REGRESSION_GATE=0 turns it off: benchmark.cjs does, because for another model an L0
+      // death is a result to score, not a regression of the prompt.
+      if (process.env.REGRESSION_GATE !== "0" && lastLevel === 0 && levels[0] && levels[0].deaths > 0) {
         stopped = { level: 0, reason: "L0_regression_gate", message: `L0 cleared with ${levels[0].deaths} death(s) (expected 0). Ladder blocked.` };
         console.log(`  [L0 REGRESSION GATE] L0 cleared with ${levels[0].deaths} death(s), expected 0. Blocking ladder. ${levels[0].deaths} death(s), ${levels[0].decisions} decisions.`);
         break;
