@@ -78,16 +78,18 @@ If Playwright says `Executable doesn't exist at .../chromium_headless_shell-<n>`
 
 ## Models with a different request shape
 
-[`adapters/systemone_adapter.py`](../adapters/systemone_adapter.py) puts a model behind `/v1/systemone` when its own server or API takes something else. It has three backends today:
+[`adapters/systemone_adapter.py`](../adapters/systemone_adapter.py) puts a model behind `/v1/systemone` when its own server or API takes something else. It has four backends today:
 
 - `phocinae`: the `phocinae-server` engine (takes a list of options and returns a list of scores).
 - `autojev`: the `autojev` `DecisionModel` that ships inside some model repos (Darwin-27B-ZTC, for example).
 - `intern`: the `DecisionEngine` in the `inference.py` that ships with internlm's Intern-Decision models (2B and 4B). It needs no torchvision: the engine's image processor is only used for image requests, so the backend gives it the tokenizer instead.
+- `bosun`: Hanno-Labs' Bosun, a PEFT adapter on a pinned Qwen base, loaded by the repo's own `BosunForDecision` (`trust_remote_code`). Download the base at the revision in its `config.json` into a Hugging Face cache, and serve with `HF_HOME` pointing at it and `HF_MODULES_CACHE` at a writable folder.
 
 ```sh
 python adapters/systemone_adapter.py --backend phocinae --model-dir ./Phocinae-Largha-150M-v1 --port 8000
 python adapters/systemone_adapter.py --backend autojev  --model-dir ./Darwin-27B-ZTC --port 8000
 python adapters/systemone_adapter.py --backend intern   --model-dir ./Intern-Decision-2B --port 8000
+python adapters/systemone_adapter.py --backend bosun    --model-dir ./bosun-v3.1-1.7b --port 8000
 ```
 
 Adding a backend is one function that takes the state and the questions and returns one list of probabilities per question, in the order of its `criteria`. `python adapters/test_systemone_adapter.py` checks the request validation and the mapping with a stub backend (no torch needed).
