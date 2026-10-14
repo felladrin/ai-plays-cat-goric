@@ -12,6 +12,7 @@ The ranking with its columns is in the [readme](../readme.md#leaderboard). Here 
 | Model | Seed 1 | Seed 2 | Seed 3 | Seed 4 | Seed 5 |
 | --- | --- | --- | --- | --- | --- |
 | PurpleMIST-Flash-1.0 | won, 22 deaths | won, 25 deaths | won, 15 deaths | won, 27 deaths | won, 9 deaths |
+| h2o-lightning-4b | lost on L2, 100 deaths | lost on L2, 100 deaths | lost on L9, 216 deaths | lost on L9, 130 deaths | lost on L9, 206 deaths |
 <!-- leaderboard:end -->
 
 ## What the columns mean

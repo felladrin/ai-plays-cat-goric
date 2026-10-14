@@ -16,6 +16,7 @@ Each model plays the whole game (14 levels in one run, up to 100 lives per level
 | Rank | Model | pass@1 | pass@5 | Levels cleared | Deaths |
 | --- | --- | --- | --- | --- | --- |
 | 1 | PurpleMIST-Flash-1.0 | 100% | yes | 14.0 / 14 | 22 |
+| 2 | h2o-lightning-4b | 0% | no | 6.2 / 14 | n/a |
 <!-- leaderboard:end -->
 
 A new version comes with each change to what the model reads, and every model plays it again. [docs/benchmark.md](docs/benchmark.md) has each seed's outcome, the versions, and how to add your model.
