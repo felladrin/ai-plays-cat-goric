@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { score, offVersion, DEFAULT_SEEDS } = require("../benchmark.cjs");
-const { rank, splice, START, END } = require("../leaderboard.cjs");
+const { rank, splice, summaryTable, START, END } = require("../leaderboard.cjs");
 const { PRESETS } = require("../preset.cjs");
 
 const seed = (s, won, lastLevel, totalDeaths) => ({ seed: s, won, lastLevel, totalDeaths, build: Object.assign({ SEED: String(s), PRESET: "winning", ATTRIB: "1" }, PRESETS.winning) });
@@ -38,6 +38,10 @@ const order = rank([
   entry("d", [five[3], five[3]]),
 ]).map((e) => e.model);
 assert.deepStrictEqual(order, ["a", "b", "c", "d"], "more wins, then more levels, then fewer deaths");
+// Equal scores share a rank number; the next one skips (1, 2, 2, 4).
+const tied = summaryTable([{ version: "v1", entries: [entry("x", five), entry("y", [five[2], five[3]]), entry("z", [five[3], five[2]]), entry("w", [five[3], five[3]])] }])
+  .split("\n").filter((l) => /^\| \d/.test(l)).map((l) => l.split(" | ")[0].slice(2));
+assert.deepStrictEqual(tied, ["1", "2", "2", "4"], "ties share a rank");
 
 assert.strictEqual(splice(`x\n${START}\nold\n${END}\ny`, "new", "f"), `x\n${START}\nnew\n${END}\ny`);
 assert.throws(() => splice("no markers", "t", "f.md"), /f.md: the leaderboard markers are missing/);

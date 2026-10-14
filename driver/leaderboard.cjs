@@ -34,10 +34,16 @@ function load(dir = DATA) {
 }
 
 // Best first: more seeds won, then more levels cleared, then fewer deaths.
-function rank(entries) {
+const better = (a, b) => {
   const d = (e) => (e.score.medianDeaths === null ? Infinity : e.score.medianDeaths);
-  return entries.slice().sort((a, b) => b.score.pass1 - a.score.pass1 || b.score.levelsCleared - a.score.levelsCleared || d(a) - d(b));
+  return b.score.pass1 - a.score.pass1 || b.score.levelsCleared - a.score.levelsCleared || d(a) - d(b);
+};
+function rank(entries) {
+  return entries.slice().sort(better);
 }
+
+// Equal scores share a rank number, the next one skips (1, 2, 2, 4).
+const place = (ranked, i) => 1 + ranked.filter((o) => better(o, ranked[i]) < 0).length;
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 const name = (e) => e.model.replace(/^.*\//, "");
@@ -48,7 +54,7 @@ function summaryTable(versions) {
     "",
     "| Rank | Model | pass@1 | pass@5 | Levels cleared | Deaths |",
     "| --- | --- | --- | --- | --- | --- |",
-    ...rank(entries).map((e, i) => `| ${i + 1} | ${name(e)} | ${pct(e.score.pass1)} | ${e.score.pass5 ? "yes" : "no"} | ` +
+    ...rank(entries).map((e, i, ranked) => `| ${place(ranked, i)} | ${name(e)} | ${pct(e.score.pass1)} | ${e.score.pass5 ? "yes" : "no"} | ` +
       `${e.score.levelsCleared.toFixed(1)} / ${LEVELS} | ${e.score.medianDeaths === null ? "n/a" : e.score.medianDeaths} |`),
   ].join("\n")).join("\n\n");
 }
