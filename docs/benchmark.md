@@ -12,6 +12,7 @@ The ranking with its columns is in the [readme](../readme.md#leaderboard). Here 
 | Model | Seed 1 | Seed 2 | Seed 3 | Seed 4 | Seed 5 |
 | --- | --- | --- | --- | --- | --- |
 | PurpleMIST-Flash-1.0 | won, 22 deaths | won, 25 deaths | won, 15 deaths | won, 27 deaths | won, 9 deaths |
+| Darwin-27B-ZTC | lost on L13, 155 deaths | won, 73 deaths | lost on L13, 158 deaths | won, 108 deaths | lost on L13, 130 deaths |
 | h2o-lightning-4b | lost on L2, 100 deaths | lost on L2, 100 deaths | lost on L9, 216 deaths | lost on L9, 130 deaths | lost on L9, 206 deaths |
 | Intern-Decision-0.8B | lost on L4, 124 deaths | lost on L4, 160 deaths | lost on L4, 134 deaths | lost on L4, 131 deaths | lost on L4, 112 deaths |
 | decider-2b | lost on L4, 100 deaths | lost on L4, 168 deaths | lost on L4, 134 deaths | lost on L4, 177 deaths | lost on L4, 166 deaths |
