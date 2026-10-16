@@ -64,7 +64,7 @@ means an edit made mid-sweep cannot leak into the runs that are measuring it.
 ## Prompt for a new conversation
 
 ```
-Continue the AI-Plays-Cat-Goric project in <repo path>.
+Continue the Cat Goric Game Benchmark project in <repo path>.
 
 Read docs/agent-guide.md first and follow it exactly: the goal, the rules the project is
 judged by, the measurement rules, and the pointer to what is measured dead. Then read the

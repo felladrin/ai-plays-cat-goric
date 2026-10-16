@@ -1,4 +1,4 @@
-# AI plays Cat Goric
+# Cat Goric Game Benchmark
 
 A classifier LLM plays a 13kB platformer. Each decision it answers two multiple-choice questions about a text state description; the driver reads the probability distribution over the permitted answers and presses a key. An agent improves **what the model is told** and **how the run is measured**. It does not write the policy.
 

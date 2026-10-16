@@ -122,6 +122,6 @@ An earlier lettered-menu shim sent a *completed* user turn and asked the model t
 
 ## The decision overlay
 
-`window.overlay.thinking(bool)` and `.update(data)` are driven from both runners. The panel shows the objective and move questions with a probability bar per option, the policy mode, the latency, and level / gems / deaths / frames. Its heading is the project name, `AI Plays Cat Goric`, set in `harness.html` (it used to read `JEV CLASSIFIER`, which named the internal classifier instead of the project).
+`window.overlay.thinking(bool)` and `.update(data)` are driven from both runners. The panel shows the objective and move questions with a probability bar per option, the policy mode, the latency, and level / gems / deaths / frames. Its heading is the project name, `Cat Goric Game Benchmark`, set in `harness.html` (it used to read `JEV CLASSIFIER`, which named the internal classifier instead of the project).
 
 The bars are the point. They are the visible evidence that this is a classifier reading a next-token distribution rather than an LLM composing prose: objective `descent_right` at 0.962 with the other four options drawn as their own bars, move `right` at 0.890 with `jump_right`, `left`, `jump_left` and `jump` each rendered as a bar.

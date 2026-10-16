@@ -70,7 +70,7 @@ Requires a model endpoint that returns next-token logprobs. Any llama.cpp server
 
 ```sh
 # 0. the game (a submodule; a bare clone leaves it empty)
-git clone --recurse-submodules https://github.com/felladrin/ai-plays-cat-goric.git
+git clone --recurse-submodules https://github.com/felladrin/cat-goric-game-benchmark.git
 # already cloned without it: git submodule update --init --recursive
 
 # 1. game harness (run from repo root)
