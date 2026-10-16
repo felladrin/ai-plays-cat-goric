@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { score, offVersion, DEFAULT_SEEDS } = require("../benchmark.cjs");
-const { rank, splice, summaryTable, START, END } = require("../leaderboard.cjs");
+const { load, rank, splice, summaryTable, START, END } = require("../leaderboard.cjs");
 const { PRESETS } = require("../preset.cjs");
 
 const seed = (s, won, lastLevel, totalDeaths) => ({ seed: s, won, lastLevel, totalDeaths, build: Object.assign({ SEED: String(s), PRESET: "winning", ATTRIB: "1" }, PRESETS.winning) });
@@ -30,7 +30,7 @@ assert.ok(offVersion(off, seeds, {}, []).includes("seed 1: HOLD_LIVE=0"), "a pre
 const none = five.map((r) => Object.assign({}, r, { build: { SEED: String(r.seed), PRESET: "none", ATTRIB: "1" } }));
 assert.ok(offVersion(none, seeds, {}, []).includes("seed 1: PRESET=none"), "the bare baseline");
 
-const entry = (model, results) => ({ model, results, score: score(results) });
+const entry = (model, results) => ({ model, results, score: score(results), params: 1881825088 });
 const order = rank([
   entry("c", [five[2], five[3]]),
   entry("a", five),
@@ -42,6 +42,19 @@ assert.deepStrictEqual(order, ["a", "b", "c", "d"], "more wins, then more levels
 const tied = summaryTable([{ version: "v1", entries: [entry("x", five), entry("y", [five[2], five[3]]), entry("z", [five[3], five[2]]), entry("w", [five[3], five[3]])] }])
   .split("\n").filter((l) => /^\| \d/.test(l)).map((l) => l.split(" | ")[0].slice(2));
 assert.deepStrictEqual(tied, ["1", "2", "2", "4"], "ties share a rank");
+const row = (params) => summaryTable([{ version: "v1", entries: [Object.assign(entry("org/x", five), { params })] }]).split("\n").find((l) => /^\| 1 /.test(l));
+assert.strictEqual(row(1881825088), "| 1 | x | 1.9B | 60% | yes | 11.2 / 14 | 40 |", "the Params column, in billions");
+assert.strictEqual(row(144292870).split(" | ")[2], "144M", "under a billion, in millions");
+
+// A model with no parameter count stops the render instead of showing a blank cell.
+const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "leaderboard-"));
+fs.mkdirSync(path.join(tmp, "v1"));
+fs.writeFileSync(path.join(tmp, "v1", "x.json"), JSON.stringify({ version: "v1", model: "org/x", results: five }));
+fs.writeFileSync(path.join(tmp, "params.json"), JSON.stringify({ x: 1881825088 }));
+assert.strictEqual(load(tmp)[0].entries[0].params, 1881825088);
+fs.writeFileSync(path.join(tmp, "params.json"), "{}");
+assert.throws(() => load(tmp), /v1\/x.json: no parameter count for x/);
+fs.rmSync(tmp, { recursive: true });
 
 assert.strictEqual(splice(`x\n${START}\nold\n${END}\ny`, "new", "f"), `x\n${START}\nnew\n${END}\ny`);
 assert.throws(() => splice("no markers", "t", "f.md"), /f.md: the leaderboard markers are missing/);
