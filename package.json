@@ -1,5 +1,5 @@
 {
-  "name": "ai-plays-cat-goric",
+  "name": "cat-goric-game-benchmark",
   "version": "1.0.0",
   "description": "A classifier LLM plays Cat Goric: Escape from the Warp Chamber (js13kGames 2021). Harness bridge + driver.",
   "license": "MIT",

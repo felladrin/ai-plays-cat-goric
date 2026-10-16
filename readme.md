@@ -1,4 +1,4 @@
-# AI plays Cat Goric
+# Cat Goric Game Benchmark
 
 A language model plays [Cat Goric: Escape from the Warp Chamber](https://js13kgames.com/entries/cat-goric-escape-from-the-warp-chamber), my js13kGames 2021 entry (a 13kB game), and beats it.
 
@@ -33,8 +33,8 @@ PurpleMIST-Flash-1.0 beat the game first. What got it there was telling the mode
 ## Try it
 
 ```sh
-git clone --recurse-submodules https://github.com/felladrin/ai-plays-cat-goric.git
-cd ai-plays-cat-goric
+git clone --recurse-submodules https://github.com/felladrin/cat-goric-game-benchmark.git
+cd cat-goric-game-benchmark
 npm install
 cd driver && npm install && npx playwright install chromium && cd ..
 ```
