@@ -2,7 +2,7 @@
 
 A language model plays [Cat Goric: Escape from the Warp Chamber](https://js13kgames.com/entries/cat-goric-escape-from-the-warp-chamber), my js13kGames 2021 entry (a 13kB game), and beats it.
 
-[cat-goric-clef-seed1-8levels-2m30.webm](https://github.com/user-attachments/assets/2ddf13e1-ec1c-4002-9115-629147171ced)
+[cat-goric-game-benchmark.webm](https://github.com/user-attachments/assets/d8f2c1b2-a385-40da-aca2-18432812e539)
 
 The model never writes code and never makes a plan. At each decision it reads a text description of the game and answers two multiple-choice questions: which objective to go for, and which key to press. The driver presses the most likely key. That is the whole policy.
 
