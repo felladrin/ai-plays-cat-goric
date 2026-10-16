@@ -26,6 +26,7 @@ The ranking with its columns is in the [readme](../readme.md#leaderboard). Here 
 
 The columns follow [swe-rebench.com](https://swe-rebench.com/about), where each model also runs five times:
 
+- **Params**: the model's parameter count, from the weights it runs with (the safetensors metadata on Hugging Face; for an adapter, the base model plus the adapter). A bigger model does not always score higher.
 - **pass@1**: the share of the five seeds won, so the chance that one run beats the game.
 - **pass@5**: yes when at least one of the five seeds was won.
 - **Levels cleared**: the mean number of levels cleared, out of 14 (a win counts 14). It separates the models that never win.
@@ -101,8 +102,9 @@ The preset was tuned on PurpleMIST-Flash-1.0's answers: each prompt fact was add
 
 1. Run `npm run benchmark -- <endpoint>` on a clean checkout, and check that the last line says it is a result of the current version.
 2. Copy its `benchmark.json` to `docs/leaderboard/<version>/<model>.json`.
-3. Run `npm run leaderboard` from `driver/`. It updates the tables in this page and in the readme (`npm test` fails when they are out of date).
-4. Open a pull request with those files and an entry in [results.md](results.md). Name the model, how you served it (server, version, quantization) and the exact command.
+3. Add the model's parameter count to `docs/leaderboard/params.json`, under the model name without the organization.
+4. Run `npm run leaderboard` from `driver/`. It updates the tables in this page and in the readme (`npm test` fails when they are out of date).
+5. Open a pull request with those files and an entry in [results.md](results.md). Name the model, how you served it (server, version, quantization) and the exact command.
 
 ## Before the leaderboard
 
