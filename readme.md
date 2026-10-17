@@ -17,14 +17,15 @@ Each model plays the whole game (14 levels in one run, up to 100 lives per level
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | PurpleMIST-Flash-1.0 | 7.9B | 100% | yes | 14.0 / 14 | 22 |
 | 2 | Darwin-27B-ZTC | 25.6B | 40% | yes | 13.4 / 14 | 90.5 |
-| 3 | d3-flash | 8.4B | 0% | no | 13.0 / 14 | n/a |
-| 4 | h2o-lightning-4b | 4.5B | 0% | no | 6.2 / 14 | n/a |
-| 5 | Intern-Decision-0.8B | 853M | 0% | no | 4.0 / 14 | n/a |
-| 5 | decider-2b | 1.9B | 0% | no | 4.0 / 14 | n/a |
-| 7 | bosun-v3.1-1.7b | 2.1B | 0% | no | 3.2 / 14 | n/a |
-| 8 | Phocinae-Largha-150M-v1 | 144M | 0% | no | 2.2 / 14 | n/a |
-| 9 | Intern-Decision-2B | 2.2B | 0% | no | 1.6 / 14 | n/a |
-| 10 | PurpleMIST-Mini-1.0 | 1.9B | 0% | no | 1.0 / 14 | n/a |
+| 3 | d3 | 26.1B | 20% | yes | 9.0 / 14 | 119 |
+| 4 | d3-flash | 8.4B | 0% | no | 13.0 / 14 | n/a |
+| 5 | h2o-lightning-4b | 4.5B | 0% | no | 6.2 / 14 | n/a |
+| 6 | Intern-Decision-0.8B | 853M | 0% | no | 4.0 / 14 | n/a |
+| 6 | decider-2b | 1.9B | 0% | no | 4.0 / 14 | n/a |
+| 8 | bosun-v3.1-1.7b | 2.1B | 0% | no | 3.2 / 14 | n/a |
+| 9 | Phocinae-Largha-150M-v1 | 144M | 0% | no | 2.2 / 14 | n/a |
+| 10 | Intern-Decision-2B | 2.2B | 0% | no | 1.6 / 14 | n/a |
+| 11 | PurpleMIST-Mini-1.0 | 1.9B | 0% | no | 1.0 / 14 | n/a |
 <!-- leaderboard:end -->
 
 A new version comes with each change to what the model reads, and every model plays it again. [docs/benchmark.md](docs/benchmark.md) has each seed's outcome, the versions, and how to add your model.
